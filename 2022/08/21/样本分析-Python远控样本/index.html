@@ -1,0 +1,234 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+    
+	<title>样本分析-Python远控样本 - Mask安全小组&#39;s Blog</title>
+    <meta name="author" content="">
+    
+	<meta name="description" content="&lt;p&gt;Python远控样本分析案例，主要任务是提取C2地址，因为样本存在检测沙箱和虚拟机，在没有真机的情况下需进行手动分析获取对应地址。&lt;/p&gt;
+&lt;p&gt;获取C2地址直接通过抓取流量也是可以的，本文主要还是分享一下实操的过程和经验。&lt;/p&gt;
+&lt;p&gt;录屏: &lt;a href=&#34;https://www.bilibili.com/video/BV1pN4y157F8/&#34;&gt;https://www.bilibili.com/video/BV1pN4y157F8/&lt;/a&gt; 素材: &lt;a href=&#34;https://github.com/MaskCyberSecurityTeam/TechniqueShare&#34;&gt;https://github.com/MaskCyberSecurityTeam/TechniqueShare&lt;/a&gt;&lt;/p&gt;
+&lt;h1 id=&#34;样本类型判断&#34;&gt;&lt;a href=&#34;#样本类型判断&#34; class=&#34;headerlink&#34; title=&#34;样本类型判断&#34;&gt;&lt;/a&gt;样本类型判断&lt;/h1&gt;&lt;p&gt;通过查看样本字符串，含有python34.dll相关字符串，python编译为exe的话常用的pyinstaller。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;strings xxx.exe&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220700531.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;pyinstxtractor&#34;&gt;&lt;a href=&#34;#pyinstxtractor&#34; class=&#34;headerlink&#34; title=&#34;pyinstxtractor&#34;&gt;&lt;/a&gt;pyinstxtractor&lt;/h1&gt;&lt;p&gt;通过使用pyinstxtractor可以将python写的exe进行解包&lt;/p&gt;
+&lt;p&gt;项目地址: &lt;a href=&#34;https://github.com/extremecoders-re/pyinstxtractor&#34;&gt;https://github.com/extremecoders-re/pyinstxtractor&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;需要使用对应的python版本进行解包才能解除相应的依赖包。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;python pyinstxtractor.py xxx.exe&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220716925.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;pyc反编译&#34;&gt;&lt;a href=&#34;#pyc反编译&#34; class=&#34;headerlink&#34; title=&#34;pyc反编译&#34;&gt;&lt;/a&gt;pyc反编译&lt;/h1&gt;&lt;p&gt;在线反编译工具: &lt;a href=&#34;https://tool.lu/pyc/&#34;&gt;https://tool.lu/pyc/&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;提示反编译报错&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220725803.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;猜测可能是文件头存在问题&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220732499.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;使用其他可以成功反编译的pyc文件头进行填充，然后进行反编译。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220741801.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;反编译成功&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220748872.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;样本分析&#34;&gt;&lt;a href=&#34;#样本分析&#34; class=&#34;headerlink&#34; title=&#34;样本分析&#34;&gt;&lt;/a&gt;样本分析&lt;/h1&gt;&lt;p&gt;反编译后发现存在 buf1、buf2、buf3跟进进行查看&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220755885.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;直接传入的位置 &lt;code&gt;loader.payload_loader(buf1+buf2+buf3)&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220806051.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;loader是引入的依赖，pyinstxtractor解包正确的话可以在XXX_extracted文件夹中找到依赖。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220812882.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;使用正确的Python版本解压&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220820173.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220825277.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;复用dectry函数，解出shellcode。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220831487.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;有了原始的shellcode后，只需要将shellcode加载起来就可以得到对应的C2地址了。&lt;/p&gt;
+&lt;p&gt;通过使用scdbg获取shellcode加载后的C2回连&lt;/p&gt;
+&lt;p&gt;下载地址: &lt;a href=&#34;https://github.com/dzzie/VS_LIBEMU/releases&#34;&gt;https://github.com/dzzie/VS_LIBEMU/releases&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220843148.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;使用shellcode加载器加载&lt;/p&gt;
+&lt;p&gt;下载地址: &lt;a href=&#34;https://github.com/k8gege/scrun&#34;&gt;https://github.com/k8gege/scrun&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220849635.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;使用火绒剑查看回连的ip，但是这里的ip并不是一个准确的ip，因为C2的通讯使用了像CDN或云函数之类的方式。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220855583.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;当然最好的是可以使用wireshark方式抓包&lt;/p&gt;
+"> <!-- TODO: truncate -->
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="atom.xml" rel="alternate" title="Mask安全小组&#39;s Blog" type="application/atom+xml">
+	<link href="/favicon.ico" rel="shortcut icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/hljs.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+    <link href='/stylesheets/font.css' rel='stylesheet' type='text/css'>
+	<script src="//cdn.bootcdn.net/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![}]-->
+
+    <script type="text/javascript" src="/javascripts/jquery-tapir.js"></script>
+
+    <!-- remove or comment it to disable ajaxification -->   
+    <!-- <script src="/javascripts/ajaxify.js"></script> -->
+
+    
+
+    
+
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+    <div id="wrapper">
+    <header id="header" class="inner"><!-- for more effects see _animate.scss -->
+<h1 class="animated bounceInDown">
+    <div id="headerbg">
+        Mask安全小组&#39;s Blog
+    </div>
+</h1>
+<span class="subtitle"></span>
+<br>
+
+<ul id="social-links" style="text-align:center; clear:both;">
+  
+  
+  
+  
+  
+  
+  
+  
+</ul>
+
+
+<!-- use full url including 'index.html' for navigation bar if you are using ajax -->
+<ul id="nav">
+	<li id="ajax"><a href="/index.html">首页</a></li>
+	<li id="ajax"><a href="/archives/index.html">文章</a></li>
+	<li id="ajax"><a href="/tags/index.html">标签</a></li>
+    <li><a href="/atom.xml">RSS</a></li>
+    
+    <li>
+    <div id="dark">
+        <form action="//www.google.com.hk/search" method="get" accept-charset="UTF-8" id="search">
+            <input type="hidden" name="sitesearch" value="https://blog.mask-sec.com" />
+            <input type="text" name="q" results="0" placeholder="搜索..." x-webkit-speech />
+        </form>
+    </div>
+    </li>
+        
+</ul>
+
+
+
+
+</header>
+
+<div id="toload">
+<!-- begin toload -->
+    <div id="content" class="inner">
+        <article class="post">
+	<h2 class="title">样本分析-Python远控样本</h2>
+    <div class="meta">
+        <div class="date">发布时间: <time datetime="2022-08-21T14:04:21.000Z" itemprop="datePublished">2022-04-21</time>
+</div>
+        <div class="tags">标签: 
+
+<a href="/tags/样本分析/">样本分析</a>
+</div>
+    </div>
+	<div class="entry-content"><p>Python远控样本分析案例，主要任务是提取C2地址，因为样本存在检测沙箱和虚拟机，在没有真机的情况下需进行手动分析获取对应地址。</p>
+<p>获取C2地址直接通过抓取流量也是可以的，本文主要还是分享一下实操的过程和经验。</p>
+<p>录屏: <a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1pN4y157F8/">https://www.bilibili.com/video/BV1pN4y157F8/</a> 素材: <a target="_blank" rel="noopener" href="https://github.com/MaskCyberSecurityTeam/TechniqueShare">https://github.com/MaskCyberSecurityTeam/TechniqueShare</a></p>
+<h1 id="样本类型判断"><a href="#样本类型判断" class="headerlink" title="样本类型判断"></a>样本类型判断</h1><p>通过查看样本字符串，含有python34.dll相关字符串，python编译为exe的话常用的pyinstaller。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">strings xxx.exe</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220700531.png" alt="图片"></p>
+<h1 id="pyinstxtractor"><a href="#pyinstxtractor" class="headerlink" title="pyinstxtractor"></a>pyinstxtractor</h1><p>通过使用pyinstxtractor可以将python写的exe进行解包</p>
+<p>项目地址: <a target="_blank" rel="noopener" href="https://github.com/extremecoders-re/pyinstxtractor">https://github.com/extremecoders-re/pyinstxtractor</a></p>
+<p>需要使用对应的python版本进行解包才能解除相应的依赖包。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python pyinstxtractor.py xxx.exe</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220716925.png" alt="图片"></p>
+<h1 id="pyc反编译"><a href="#pyc反编译" class="headerlink" title="pyc反编译"></a>pyc反编译</h1><p>在线反编译工具: <a target="_blank" rel="noopener" href="https://tool.lu/pyc/">https://tool.lu/pyc/</a></p>
+<p>提示反编译报错</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220725803.png" alt="图片"></p>
+<p>猜测可能是文件头存在问题</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220732499.png" alt="图片"></p>
+<p>使用其他可以成功反编译的pyc文件头进行填充，然后进行反编译。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220741801.png" alt="图片"></p>
+<p>反编译成功</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220748872.png" alt="图片"></p>
+<h1 id="样本分析"><a href="#样本分析" class="headerlink" title="样本分析"></a>样本分析</h1><p>反编译后发现存在 buf1、buf2、buf3跟进进行查看</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220755885.png" alt="图片"></p>
+<p>直接传入的位置 <code>loader.payload_loader(buf1+buf2+buf3)</code></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220806051.png" alt="图片"></p>
+<p>loader是引入的依赖，pyinstxtractor解包正确的话可以在XXX_extracted文件夹中找到依赖。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220812882.png" alt="图片"></p>
+<p>使用正确的Python版本解压</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220820173.png" alt="图片"></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220825277.png" alt="图片"></p>
+<p>复用dectry函数，解出shellcode。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220831487.png" alt="图片"></p>
+<p>有了原始的shellcode后，只需要将shellcode加载起来就可以得到对应的C2地址了。</p>
+<p>通过使用scdbg获取shellcode加载后的C2回连</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://github.com/dzzie/VS_LIBEMU/releases">https://github.com/dzzie/VS_LIBEMU/releases</a></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220843148.png" alt="图片"></p>
+<p>使用shellcode加载器加载</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://github.com/k8gege/scrun">https://github.com/k8gege/scrun</a></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220849635.png" alt="图片"></p>
+<p>使用火绒剑查看回连的ip，但是这里的ip并不是一个准确的ip，因为C2的通讯使用了像CDN或云函数之类的方式。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220855583.png" alt="图片"></p>
+<p>当然最好的是可以使用wireshark方式抓包</p>
+</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+
+    </div>
+    <footer id="footer">
+    <div style="display:inline">
+    Copyright &copy; 2022
+
+    Mask安全小组
+
+</div>
+
+
+    </footer>
+    <script src="/javascripts/fabric.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+ <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+<!-- end toload --> 
+</div>
+</div>
+<script src="/javascripts/jquery.ui.totop.js" type="text/javascript"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+;(function($){$().UItoTop({easingType:'easeOutCirc'});})(jQuery); 
+/*]]>*/
+</script><!-- remove it to remove the scroll to top button -->
+</body>
+</html>

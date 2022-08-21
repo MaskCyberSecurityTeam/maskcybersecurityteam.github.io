@@ -87,19 +87,256 @@
 
   <article class="post">
 	<h2 class="title">
-		<a href="2022/08/19/测试/">测试</a>
+		<a href="2022/08/21/样本分析-Python远控样本/">样本分析-Python远控样本</a>
 	</h2>
     <div class="entry-content">
     <div class="meta">
-      <div class="date">发布时间: <time datetime="2022-08-19T12:23:22.000Z" itemprop="datePublished">2022-23-19</time>
+      <div class="date">发布时间: <time datetime="2022-08-21T14:04:21.000Z" itemprop="datePublished">2022-04-21</time>
 </div>
       <div class="tags">标签: 
 
-<a href="/tags/测试/">测试</a>
+<a href="/tags/样本分析/">样本分析</a>
 </div>
     </div>
       
-        
+        <p>Python远控样本分析案例，主要任务是提取C2地址，因为样本存在检测沙箱和虚拟机，在没有真机的情况下需进行手动分析获取对应地址。</p>
+<p>获取C2地址直接通过抓取流量也是可以的，本文主要还是分享一下实操的过程和经验。</p>
+<p>录屏: <a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1pN4y157F8/">https://www.bilibili.com/video/BV1pN4y157F8/</a> 素材: <a target="_blank" rel="noopener" href="https://github.com/MaskCyberSecurityTeam/TechniqueShare">https://github.com/MaskCyberSecurityTeam/TechniqueShare</a></p>
+<h1 id="样本类型判断"><a href="#样本类型判断" class="headerlink" title="样本类型判断"></a>样本类型判断</h1><p>通过查看样本字符串，含有python34.dll相关字符串，python编译为exe的话常用的pyinstaller。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">strings xxx.exe</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220700531.png" alt="图片"></p>
+<h1 id="pyinstxtractor"><a href="#pyinstxtractor" class="headerlink" title="pyinstxtractor"></a>pyinstxtractor</h1><p>通过使用pyinstxtractor可以将python写的exe进行解包</p>
+<p>项目地址: <a target="_blank" rel="noopener" href="https://github.com/extremecoders-re/pyinstxtractor">https://github.com/extremecoders-re/pyinstxtractor</a></p>
+<p>需要使用对应的python版本进行解包才能解除相应的依赖包。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python pyinstxtractor.py xxx.exe</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220716925.png" alt="图片"></p>
+<h1 id="pyc反编译"><a href="#pyc反编译" class="headerlink" title="pyc反编译"></a>pyc反编译</h1><p>在线反编译工具: <a target="_blank" rel="noopener" href="https://tool.lu/pyc/">https://tool.lu/pyc/</a></p>
+<p>提示反编译报错</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220725803.png" alt="图片"></p>
+<p>猜测可能是文件头存在问题</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220732499.png" alt="图片"></p>
+<p>使用其他可以成功反编译的pyc文件头进行填充，然后进行反编译。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220741801.png" alt="图片"></p>
+<p>反编译成功</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220748872.png" alt="图片"></p>
+<h1 id="样本分析"><a href="#样本分析" class="headerlink" title="样本分析"></a>样本分析</h1><p>反编译后发现存在 buf1、buf2、buf3跟进进行查看</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220755885.png" alt="图片"></p>
+<p>直接传入的位置 <code>loader.payload_loader(buf1+buf2+buf3)</code></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220806051.png" alt="图片"></p>
+<p>loader是引入的依赖，pyinstxtractor解包正确的话可以在XXX_extracted文件夹中找到依赖。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220812882.png" alt="图片"></p>
+<p>使用正确的Python版本解压</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220820173.png" alt="图片"></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220825277.png" alt="图片"></p>
+<p>复用dectry函数，解出shellcode。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220831487.png" alt="图片"></p>
+<p>有了原始的shellcode后，只需要将shellcode加载起来就可以得到对应的C2地址了。</p>
+<p>通过使用scdbg获取shellcode加载后的C2回连</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://github.com/dzzie/VS_LIBEMU/releases">https://github.com/dzzie/VS_LIBEMU/releases</a></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220843148.png" alt="图片"></p>
+<p>使用shellcode加载器加载</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://github.com/k8gege/scrun">https://github.com/k8gege/scrun</a></p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220849635.png" alt="图片"></p>
+<p>使用火绒剑查看回连的ip，但是这里的ip并不是一个准确的ip，因为C2的通讯使用了像CDN或云函数之类的方式。</p>
+<p><img src="/images/%E6%A0%B7%E6%9C%AC%E5%88%86%E6%9E%90-Python%E8%BF%9C%E6%8E%A7%E6%A0%B7%E6%9C%AC/640-20220821220855583.png" alt="图片"></p>
+<p>当然最好的是可以使用wireshark方式抓包</p>
+
+      
+	</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+  <article class="post">
+	<h2 class="title">
+		<a href="2022/08/21/安卓系统定制-手机刷机/">安卓系统定制-手机刷机</a>
+	</h2>
+    <div class="entry-content">
+    <div class="meta">
+      <div class="date">发布时间: <time datetime="2022-08-21T13:53:56.000Z" itemprop="datePublished">2022-53-21</time>
+</div>
+      <div class="tags">标签: 
+
+<a href="/tags/安卓系统定制/">安卓系统定制</a>
+</div>
+    </div>
+      
+        <p>上一篇文章中的步骤是针对 <code>Pixel(sailfish)</code>的手机，本篇文章使用的是 <code>PixelXL(Marlin)</code>，所以要注意下编译的安卓系统手机驱动的部分要选择使用的是 <code>Marlin</code>。</p>
+<h1 id="刷机前的准备"><a href="#刷机前的准备" class="headerlink" title="刷机前的准备"></a>刷机前的准备</h1><h2 id="硬件设备"><a href="#硬件设备" class="headerlink" title="硬件设备"></a>硬件设备</h2><ul>
+<li>Pixel XL（marlin）手机一部 - <strong>需要进行解锁，这里建议大家在咸鱼或淘宝买一部，价格270左右能买到，买时注意问下有没进行解锁。</strong></li>
+<li>能连电脑和手机的数据线一条</li>
+</ul>
+<h2 id="Android套件"><a href="#Android套件" class="headerlink" title="Android套件"></a>Android套件</h2><p>这里下载一个AndroidStudio，通过这个来安装SDK。安装完成后，打开 <code>Preferences</code>。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215818982.png" alt="Image"></p>
+<p>勾选对应的SDK，这里承接上文，选择SDK10。进行安装</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836401.png" alt="Image"></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836387.png" alt="Image"></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836246.png" alt="Image"></p>
+<p>安装完成后，在环境变量中添加如下信息(这里笔者使用的是Mac电脑只能提供Mac的了)，相信聪明的你应该知道咋配置。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> ANDROID_HOME=/Users/xxx/Library/Android/sdk/</span><br><span class="line"><span class="built_in">export</span> PATH=<span class="string">&quot;<span class="variable">$ANDROID_HOME</span>/platform-tools:<span class="variable">$ANDROID_HOME</span>/tools:<span class="variable">$PATH</span>&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>SDK的路径在上边的AndroidStudio配置里能看到</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215916057.png" alt="Image"></p>
+<p>输入 <code>fastboot--help</code>和 <code>adb--help</code>，能正常提示的话就是正常了，提示找不到命令的话就检查一下环境变量的配置。</p>
+<h2 id="原厂镜像下载"><a href="#原厂镜像下载" class="headerlink" title="原厂镜像下载"></a>原厂镜像下载</h2><p>Google原厂镜像: <a target="_blank" rel="noopener" href="https://developers.google.com/android/images#marlin">https://developers.google.com/android/images#marlin</a></p>
+<p>点击页面上的 <code>Acknowledge</code></p>
+<p>选择对应的手机型号和Android版本，点击 <code>Link</code>进行下载。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215934436.png" alt="Image"></p>
+<h1 id="进行刷机"><a href="#进行刷机" class="headerlink" title="进行刷机"></a>进行刷机</h1><p>将手机用数据线连接到电脑上，按照下边的步骤开启USB调试。</p>
+<h2 id="USB调试"><a href="#USB调试" class="headerlink" title="USB调试"></a>USB调试</h2><p>开启开发者模式: 设置 -&gt; 关于手机 -&gt; 版本号(连续多次点击就可以开启开发者模式)</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220001598.png" alt="Image"></p>
+<p>开启手机USB调试: 设置 -&gt; 系统 -&gt; 高级 -&gt; USB调试 -&gt; 在手机上点击弹出来要求进行授权的窗口。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220010945.png" alt="Image"></p>
+<p>打开终端输入 <code>adb devices</code>，能正常显示出有一台设备即可。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220019400.png" alt="Image"></p>
+<h2 id="进入bootloader模式"><a href="#进入bootloader模式" class="headerlink" title="进入bootloader模式"></a>进入bootloader模式</h2><p>注意这个过程<strong>不要拔掉数据线</strong>，打开命令行输入下边的命令。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">adb reboot bootloader</span><br></pre></td></tr></table></figure>
+
+<p>或者将<strong>手机关机后同时按住手机电源键与音量减键</strong>，进入bootloader界面。注意下图中提示的 <code>UNLOCKED</code>，代表手机已经是解锁状态。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220112690.png" alt="Image"></p>
+<h2 id="刷入系统"><a href="#刷入系统" class="headerlink" title="刷入系统"></a>刷入系统</h2><p>这里先使用Google下载的原厂镜像包进行刷机尝试，将下好的包进行解压，然后在手机连接电脑并处于bootloader模式下运行镜像包中的脚本。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> 777 ./flash-all.sh</span><br><span class="line">./flash-all.sh</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220128971.png" alt="Image"></p>
+<p>等待脚本执行完</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220139396.png" alt="Image"></p>
+<p>此时正常刷入后，手机就会进入到初始化配置的界面，正常配置就可以了。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220201024.png" alt="Image"></p>
+<h1 id="刷入定制的系统"><a href="#刷入定制的系统" class="headerlink" title="刷入定制的系统"></a>刷入定制的系统</h1><p>在上一篇文章中，我们已经介绍了如何进行系统编译，编译完成后在 <code>~/bin/aosp/out/target/product/手机代号/</code>文件夹下提取出以下几个文件。</p>
+<ul>
+<li>vendor.img</li>
+<li>system_other.img</li>
+<li>system.img</li>
+<li>boot.img</li>
+</ul>
+<p>并将这些文件，放入原本解压出来的Google镜像包中的 <code>.zip</code>文件中，使用压缩包的方式打开这个 <code>.zip</code>文件，然后将文件拖拽进去。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220209549.png" alt="Image"></p>
+<p>进行覆盖</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220217614.png" alt="Image"></p>
+<p>之后按照前边的刷入系统的步骤再次打开usb调试，通过命令进入bootloader模式，然后运行flash-all.sh脚本即可。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220227606.png" alt="Image"></p>
+<p>刷机完成后正常配置进入到桌面</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220241854.png" alt="Image"></p>
+<p>可以看到系统的构建版本就是我们自己指定编译的安卓系统。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220255008.png" alt="Image"></p>
+<p>之后的文章中会介绍如何通过自己定制的系统完成一些日常逆向中所需要的操作。</p>
+
+      
+	</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+  <article class="post">
+	<h2 class="title">
+		<a href="2022/08/21/安卓系统定制-系统编译/">安卓系统定制-系统编译</a>
+	</h2>
+    <div class="entry-content">
+    <div class="meta">
+      <div class="date">发布时间: <time datetime="2022-08-21T13:49:18.000Z" itemprop="datePublished">2022-49-21</time>
+</div>
+      <div class="tags">标签: 
+
+<a href="/tags/安卓系统定制/">安卓系统定制</a>
+</div>
+    </div>
+      
+        <h1 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h1><h2 id="Ubuntu系统安装"><a href="#Ubuntu系统安装" class="headerlink" title="Ubuntu系统安装"></a>Ubuntu系统安装</h2><p>下载一个Ubuntu-20.04.2.0-desktop系统，之后用来编译安卓系统用。将内存调到 <code>16g+</code>、磁盘 <code>500g+</code>。**(有单独不用的真机的话建议可以使用真机)**</p>
+<ul>
+<li><p>安装完成后进行如下几个操作</p>
+</li>
+<li><ul>
+<li>关闭睡眠和锁屏 &#x3D; 点击右上角的设置 -&gt; 隐私 -&gt; 锁屏 -&gt; 取消自动锁屏</li>
+<li>设置中文 &#x3D; Setting -&gt; Region &amp; Language -&gt; Manage Installed.. -&gt; 添加或删除 -&gt; 中文简体(Chinese Simplifed) -&gt; LogOut</li>
+<li>更新下载源 &#x3D; 点击右上角的设置 -&gt; 关于 -&gt; 软件更新 -&gt; 修改”下载自”处位置</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 安装虚拟机和真机拖拽用的工具，真机可以忽略。</span></span><br><span class="line">sudo apt-get autoremove open-vm-tools</span><br><span class="line">sudo apt install open-vm-tools-desktop</span><br><span class="line">reboot</span><br></pre></td></tr></table></figure>
+
+<h2 id="AOSP源码下载"><a href="#AOSP源码下载" class="headerlink" title="AOSP源码下载"></a>AOSP源码下载</h2><p>这一步是准备安卓源码包，下边的步骤照着做就可以了，建议先玩转起来不要太过多纠结里边的一些概念。</p>
+<h3 id="初始化包"><a href="#初始化包" class="headerlink" title="初始化包"></a>初始化包</h3><p>下载: aosp-20210601.tar 有点大119G</p>
+<p><strong>因为Android的源码越来越大，直接使用repo sync失败的概率也越来越高。所以我们可以避开使用repo sync的方式，而采用下载初始化包的方式来实现下载源码。</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> ~/bin/</span><br><span class="line"><span class="built_in">cd</span> ~/bin/ <span class="comment"># 将下载好的tar包放在该目录下，并进行解压。</span></span><br><span class="line">tar xvf aosp-latest.tar</span><br></pre></td></tr></table></figure>
+
+<h3 id="同步源码"><a href="#同步源码" class="headerlink" title="同步源码"></a>同步源码</h3><p>安装和配置git，之后需要用到。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install git</span><br><span class="line">git config --global user.email aaa@qq.com</span><br><span class="line">git config --global user.name <span class="string">&quot;aaa&quot;</span></span><br><span class="line">git config --global http.sslverify <span class="literal">false</span></span><br><span class="line">git config --global https.sslverify <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<p>下载repo，repo是一个python脚本(所以还需要配置Python环境)，因为Android源码包含数百个git库，repo用于简化帮助管理AndroidGit版本库的工具。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;PATH=~/bin:\$PATH&quot;</span> &gt;&gt; ~/.bashrc</span><br><span class="line"><span class="built_in">source</span> ~/.bashrc</span><br><span class="line">sudo apt-get install curl</span><br><span class="line">curl https://mirrors.tuna.tsinghua.edu.cn/git/git-repo -o ~/bin/repo</span><br><span class="line"><span class="built_in">chmod</span> a+x ~/bin/repo</span><br><span class="line"><span class="built_in">export</span> REPO_URL=<span class="string">&#x27;https://mirrors.tuna.tsinghua.edu.cn/git/git-repo&#x27;</span></span><br><span class="line"><span class="built_in">cd</span> ~/bin/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 需要用到python38</span></span><br><span class="line">sudo <span class="built_in">unlink</span> /usr/bin/python</span><br><span class="line">sudo <span class="built_in">ln</span> -s /usr/bin/python3.8 /usr/bin/python</span><br><span class="line"></span><br><span class="line"><span class="comment"># android版本可以在https://source.android.com/setup/build-numbers中查看，这里指定使用的源码是Android10的10.0.0_r17版</span></span><br><span class="line"><span class="comment"># 指定要同步的分支</span></span><br><span class="line">repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17</span><br><span class="line"><span class="built_in">cd</span> ./aosp/</span><br><span class="line">repo <span class="built_in">sync</span> <span class="comment"># 正常同步完成后即可得到完整的android源码目录</span></span><br></pre></td></tr></table></figure>
+
+<p>如果执行repo sync报如下错误</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">repo reset: error: Entry <span class="string">&#x27;.github/workflows/test-ci.yml&#x27;</span> not uptodate. Cannot merge.</span><br><span class="line">fatal: 不能重置索引文件至版本 <span class="string">&#x27;v2.22^0&#x27;</span>。</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215036702.png" alt="Image"></p>
+<p>按照下边这个步骤进行解决</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="built_in">cd</span> ~/bin/aosp/.repo/repo</span><br><span class="line">git pull <span class="comment"># 同步仓库代码到最新</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 回到aosp目录，重新同步一下源码。</span></span><br><span class="line"><span class="built_in">cd</span> ../../</span><br><span class="line">repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17</span><br><span class="line">repo <span class="built_in">sync</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215048565.png" alt="Image"></p>
+<p>这时候能看到aosp目录下就有对应版本的安卓源码</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215057870.png" alt="Image"></p>
+<h1 id="系统编译"><a href="#系统编译" class="headerlink" title="系统编译"></a>系统编译</h1><p>完成上边的步骤之后，将可以尝试进行系统编译。在编译前需要安装一些系统的依赖</p>
+<h2 id="环境依赖"><a href="#环境依赖" class="headerlink" title="环境依赖"></a>环境依赖</h2><p>Android7以上系统编译需要有Jdk8、以及一些系统上的依赖。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sudo add-apt-repository ppa:openjdk-r/ppa</span><br><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install openjdk-8-jdk</span><br><span class="line"></span><br><span class="line"><span class="comment"># 其他版本的ubuntu依赖,可以参考: https://source.android.com/setup/build/initializing?hl=zh-cn#next-download-the-source</span></span><br><span class="line">sudo apt-get install git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libncurses5</span><br></pre></td></tr></table></figure>
+
+<h2 id="手机驱动"><a href="#手机驱动" class="headerlink" title="手机驱动"></a>手机驱动</h2><p>根据自己的手机设备和Android系统版本，来选择对应的手机驱动。</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://developers.google.com/android/drivers">https://developers.google.com/android/drivers</a></p>
+<p>对应系统具体的构建ID查询: <a target="_blank" rel="noopener" href="https://source.android.com/setup/build-numbers">https://source.android.com/setup/build-numbers</a></p>
+<p>这里根据上文，这里选择使用的驱动 <code>PixelbinariesforAndroid10.0.0(QP1A.191005.007.A3)</code>。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215115851.png" alt="Image"></p>
+<p><strong>下载这2个文件，并将这两个压缩包文件上传放置&#x2F;aosp&#x2F;目录下，并解压执行里边的shell脚本。</strong>需要注意的是Shell脚本会要求你输入 <code>I ACCEPT</code>，这个大概在第8条左右的规则那里。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/bin/aosp/</span><br><span class="line"><span class="built_in">chmod</span> 777 ./extract-google_devices-sailfish.sh</span><br><span class="line"><span class="built_in">chmod</span> 777 ./extract-qcom-sailfish.sh</span><br><span class="line">./extract-google_devices-sailfish.sh <span class="comment"># 注意要输入 I ACCEPT</span></span><br><span class="line">./extract-qcom-sailfish.sh <span class="comment"># 注意要输入 I ACCEPT</span></span><br><span class="line"><span class="comment"># 执行完后就可以将这文件删除</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215136359.png" alt="Image"></p>
+<p>上述步骤操作完成后，<strong>需要查看一下源码中有没手机对应的设备内核。</strong></p>
+<p>内核存放位置参考: <a target="_blank" rel="noopener" href="https://source.android.google.cn/setup/build/building-kernels#id-version">https://source.android.google.cn/setup/build/building-kernels#id-version</a></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215147875.png" alt="Image"></p>
+<p><strong>如果没有对应的内核，则按照文档中的步骤进行构建内核，一般都会有的！</strong></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215152551.png" alt="Image"></p>
+<h2 id="进行编译"><a href="#进行编译" class="headerlink" title="进行编译"></a>进行编译</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/bin/aosp/</span><br><span class="line">make clobber <span class="comment"># 清理，一套Android源码可以编译不同的机型，想要更换机形，需要执行该清理动作。</span></span><br><span class="line"><span class="built_in">source</span> build/envsetup.sh <span class="comment"># 执行配置一些环境遍历，下边的命令想要使用就要通过这个脚本进行环境变量配置。</span></span><br><span class="line">lunch <span class="comment"># 选择需要编译的设备内核和编译版本</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>版本类型</p>
+</li>
+<li><ul>
+<li>xxx-user 没有root权限。</li>
+<li>xxx-userdebug adbd有root权限，需要手动su。</li>
+<li>xxx-eng adbd完全root权限。</li>
+</ul>
+</li>
+<li><p>手机代号</p>
+</li>
+<li><ul>
+<li>sailfish 指的就是 Pixel 手机</li>
+<li>可在 <a target="_blank" rel="noopener" href="https://developers.google.com/android/drivers">https://developers.google.com/android/drivers</a> 上进行查询</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">You<span class="string">&#x27;re building on Linux</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">Lunch menu... pick a combo:</span></span><br><span class="line"><span class="string">     1. aosp_arm-eng</span></span><br><span class="line"><span class="string">     2. aosp_arm64-eng</span></span><br><span class="line"><span class="string">     3. aosp_blueline-userdebug</span></span><br><span class="line"><span class="string">     4. aosp_bonito-userdebug</span></span><br><span class="line"><span class="string">     5. aosp_car_arm-userdebug</span></span><br><span class="line"><span class="string">     6. aosp_car_arm64-userdebug</span></span><br><span class="line"><span class="string">     7. aosp_car_x86-userdebug</span></span><br><span class="line"><span class="string">     8. aosp_car_x86_64-userdebug</span></span><br><span class="line"><span class="string">     9. aosp_cf_arm64_phone-userdebug</span></span><br><span class="line"><span class="string">     10. aosp_cf_x86_64_phone-userdebug</span></span><br><span class="line"><span class="string">     11. aosp_cf_x86_auto-userdebug</span></span><br><span class="line"><span class="string">     12. aosp_cf_x86_phone-userdebug</span></span><br><span class="line"><span class="string">     13. aosp_cf_x86_tv-userdebug</span></span><br><span class="line"><span class="string">     14. aosp_crosshatch-userdebug</span></span><br><span class="line"><span class="string">     15. aosp_marlin-userdebug</span></span><br><span class="line"><span class="string">     16. aosp_sailfish-userdebug</span></span><br><span class="line"><span class="string">     17. aosp_sargo-userdebug</span></span><br><span class="line"><span class="string">     18. aosp_taimen-userdebug</span></span><br><span class="line"><span class="string">     19. aosp_walleye-userdebug</span></span><br><span class="line"><span class="string">     20. aosp_walleye_test-userdebug</span></span><br><span class="line"><span class="string">     21. aosp_x86-eng</span></span><br><span class="line"><span class="string">     22. aosp_x86_64-eng</span></span><br><span class="line"><span class="string">     23. beagle_x15-userdebug</span></span><br><span class="line"><span class="string">     24. fuchsia_arm64-eng</span></span><br><span class="line"><span class="string">     25. fuchsia_x86_64-eng</span></span><br><span class="line"><span class="string">     26. hikey-userdebug</span></span><br><span class="line"><span class="string">     27. hikey64_only-userdebug</span></span><br><span class="line"><span class="string">     28. hikey960-userdebug</span></span><br><span class="line"><span class="string">     29. hikey960_tv-userdebug</span></span><br><span class="line"><span class="string">     30. hikey_tv-userdebug</span></span><br><span class="line"><span class="string">     31. m_e_arm-userdebug</span></span><br><span class="line"><span class="string">     32. mini_emulator_arm64-userdebug</span></span><br><span class="line"><span class="string">     33. mini_emulator_x86-userdebug</span></span><br><span class="line"><span class="string">     34. mini_emulator_x86_64-userdebug</span></span><br><span class="line"><span class="string">     35. poplar-eng</span></span><br><span class="line"><span class="string">     36. poplar-user</span></span><br><span class="line"><span class="string">     37. poplar-userdebug</span></span><br><span class="line"><span class="string">     38. qemu_trusty_arm64-userdebug</span></span><br><span class="line"><span class="string">     39. uml-userdebug</span></span><br><span class="line"><span class="string">这里sailfish没有显示user和eng版本，需要手动开启。</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">cd ~/bin/aosp/</span></span><br><span class="line"><span class="string">nano device/google/marlin/AndroidProducts.mk</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string"># 在下边配置汇总增加user和eng</span></span><br><span class="line"><span class="string">COMMON_LUNCH_CHOICES := \</span></span><br><span class="line"><span class="string">        aosp_marlin-userdebug \</span></span><br><span class="line"><span class="string">        aosp_marlin-user \</span></span><br><span class="line"><span class="string">        aosp_marlin-end \</span></span><br><span class="line"><span class="string">        aosp_sailfish-userdebug \</span></span><br><span class="line"><span class="string">        aosp_sailfish-user \</span></span><br><span class="line"><span class="string">        aosp_sailfish-end</span></span><br></pre></td></tr></table></figure>
+
+<p>之后再次运行如下操作，进行编译。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">source</span> build/envsetup.sh</span><br><span class="line">lunch <span class="comment"># 输入要编译的版本</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215230347.png" alt="Image"></p>
+<p>进行编译，这里的 <code>-j</code>指的是要分配多少个CPU核心处理编译这个任务，<strong>注意不要乱填，根据实际情况来填写，不然编译到后边会报错。</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make -j4</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215248243.png" alt="Image"></p>
+<p>编译完成后会生成几个对应的镜像文件**~&#x2F;bin&#x2F;aosp&#x2F;out&#x2F;target&#x2F;product&#x2F;手机代号&#x2F;**文件夹下</p>
+<ul>
+<li>vendor.img</li>
+<li>system_other.img</li>
+<li>system.img</li>
+<li>boot.img</li>
+</ul>
+<p>将这些文件copy出来，用来进行刷机用。</p>
+
       
 	</div>
 

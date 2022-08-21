@@ -1,0 +1,326 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+    
+	<title>安卓系统定制-系统编译 - Mask安全小组&#39;s Blog</title>
+    <meta name="author" content="">
+    
+	<meta name="description" content="&lt;h1 id=&#34;环境准备&#34;&gt;&lt;a href=&#34;#环境准备&#34; class=&#34;headerlink&#34; title=&#34;环境准备&#34;&gt;&lt;/a&gt;环境准备&lt;/h1&gt;&lt;h2 id=&#34;Ubuntu系统安装&#34;&gt;&lt;a href=&#34;#Ubuntu系统安装&#34; class=&#34;headerlink&#34; title=&#34;Ubuntu系统安装&#34;&gt;&lt;/a&gt;Ubuntu系统安装&lt;/h2&gt;&lt;p&gt;下载一个Ubuntu-20.04.2.0-desktop系统，之后用来编译安卓系统用。将内存调到 &lt;code&gt;16g+&lt;/code&gt;、磁盘 &lt;code&gt;500g+&lt;/code&gt;。**(有单独不用的真机的话建议可以使用真机)**&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;安装完成后进行如下几个操作&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ul&gt;
+&lt;li&gt;关闭睡眠和锁屏 &amp;#x3D; 点击右上角的设置 -&amp;gt; 隐私 -&amp;gt; 锁屏 -&amp;gt; 取消自动锁屏&lt;/li&gt;
+&lt;li&gt;设置中文 &amp;#x3D; Setting -&amp;gt; Region &amp;amp; Language -&amp;gt; Manage Installed.. -&amp;gt; 添加或删除 -&amp;gt; 中文简体(Chinese Simplifed) -&amp;gt; LogOut&lt;/li&gt;
+&lt;li&gt;更新下载源 &amp;#x3D; 点击右上角的设置 -&amp;gt; 关于 -&amp;gt; 软件更新 -&amp;gt; 修改”下载自”处位置&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 安装虚拟机和真机拖拽用的工具，真机可以忽略。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get autoremove open-vm-tools&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt install open-vm-tools-desktop&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;reboot&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;h2 id=&#34;AOSP源码下载&#34;&gt;&lt;a href=&#34;#AOSP源码下载&#34; class=&#34;headerlink&#34; title=&#34;AOSP源码下载&#34;&gt;&lt;/a&gt;AOSP源码下载&lt;/h2&gt;&lt;p&gt;这一步是准备安卓源码包，下边的步骤照着做就可以了，建议先玩转起来不要太过多纠结里边的一些概念。&lt;/p&gt;
+&lt;h3 id=&#34;初始化包&#34;&gt;&lt;a href=&#34;#初始化包&#34; class=&#34;headerlink&#34; title=&#34;初始化包&#34;&gt;&lt;/a&gt;初始化包&lt;/h3&gt;&lt;p&gt;下载: aosp-20210601.tar 有点大119G&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;因为Android的源码越来越大，直接使用repo sync失败的概率也越来越高。所以我们可以避开使用repo sync的方式，而采用下载初始化包的方式来实现下载源码。&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;mkdir&lt;/span&gt; ~/bin/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ~/bin/ &lt;span class=&#34;comment&#34;&gt;# 将下载好的tar包放在该目录下，并进行解压。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;tar xvf aosp-latest.tar&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;h3 id=&#34;同步源码&#34;&gt;&lt;a href=&#34;#同步源码&#34; class=&#34;headerlink&#34; title=&#34;同步源码&#34;&gt;&lt;/a&gt;同步源码&lt;/h3&gt;&lt;p&gt;安装和配置git，之后需要用到。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get install git&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;git config --global user.email aaa@qq.com&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;git config --global user.name &lt;span class=&#34;string&#34;&gt;&amp;quot;aaa&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;git config --global http.sslverify &lt;span class=&#34;literal&#34;&gt;false&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;git config --global https.sslverify &lt;span class=&#34;literal&#34;&gt;false&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;下载repo，repo是一个python脚本(所以还需要配置Python环境)，因为Android源码包含数百个git库，repo用于简化帮助管理AndroidGit版本库的工具。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;11&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;12&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;13&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;14&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;15&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;16&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;17&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;echo&lt;/span&gt; &lt;span class=&#34;string&#34;&gt;&amp;quot;PATH=~/bin:\$PATH&amp;quot;&lt;/span&gt; &amp;gt;&amp;gt; ~/.bashrc&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;source&lt;/span&gt; ~/.bashrc&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get install curl&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;curl https://mirrors.tuna.tsinghua.edu.cn/git/git-repo -o ~/bin/repo&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;chmod&lt;/span&gt; a+x ~/bin/repo&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;export&lt;/span&gt; REPO_URL=&lt;span class=&#34;string&#34;&gt;&amp;#x27;https://mirrors.tuna.tsinghua.edu.cn/git/git-repo&amp;#x27;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ~/bin/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 需要用到python38&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo &lt;span class=&#34;built_in&#34;&gt;unlink&lt;/span&gt; /usr/bin/python&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo &lt;span class=&#34;built_in&#34;&gt;ln&lt;/span&gt; -s /usr/bin/python3.8 /usr/bin/python&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# android版本可以在https://source.android.com/setup/build-numbers中查看，这里指定使用的源码是Android10的10.0.0_r17版&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 指定要同步的分支&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ./aosp/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;repo &lt;span class=&#34;built_in&#34;&gt;sync&lt;/span&gt; &lt;span class=&#34;comment&#34;&gt;# 正常同步完成后即可得到完整的android源码目录&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;如果执行repo sync报如下错误&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;repo reset: error: Entry &lt;span class=&#34;string&#34;&gt;&amp;#x27;.github/workflows/test-ci.yml&amp;#x27;&lt;/span&gt; not uptodate. Cannot merge.&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;fatal: 不能重置索引文件至版本 &lt;span class=&#34;string&#34;&gt;&amp;#x27;v2.22^0&amp;#x27;&lt;/span&gt;。&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215036702.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;按照下边这个步骤进行解决&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ~/bin/aosp/.repo/repo&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;git pull &lt;span class=&#34;comment&#34;&gt;# 同步仓库代码到最新&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 回到aosp目录，重新同步一下源码。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ../../&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;repo &lt;span class=&#34;built_in&#34;&gt;sync&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215048565.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;这时候能看到aosp目录下就有对应版本的安卓源码&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215057870.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;系统编译&#34;&gt;&lt;a href=&#34;#系统编译&#34; class=&#34;headerlink&#34; title=&#34;系统编译&#34;&gt;&lt;/a&gt;系统编译&lt;/h1&gt;&lt;p&gt;完成上边的步骤之后，将可以尝试进行系统编译。在编译前需要安装一些系统的依赖&lt;/p&gt;
+&lt;h2 id=&#34;环境依赖&#34;&gt;&lt;a href=&#34;#环境依赖&#34; class=&#34;headerlink&#34; title=&#34;环境依赖&#34;&gt;&lt;/a&gt;环境依赖&lt;/h2&gt;&lt;p&gt;Android7以上系统编译需要有Jdk8、以及一些系统上的依赖。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;sudo add-apt-repository ppa:openjdk-r/ppa&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get update&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get install openjdk-8-jdk&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 其他版本的ubuntu依赖,可以参考: https://source.android.com/setup/build/initializing?hl=zh-cn#next-download-the-source&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;sudo apt-get install git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libncurses5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;h2 id=&#34;手机驱动&#34;&gt;&lt;a href=&#34;#手机驱动&#34; class=&#34;headerlink&#34; title=&#34;手机驱动&#34;&gt;&lt;/a&gt;手机驱动&lt;/h2&gt;&lt;p&gt;根据自己的手机设备和Android系统版本，来选择对应的手机驱动。&lt;/p&gt;
+&lt;p&gt;下载地址: &lt;a href=&#34;https://developers.google.com/android/drivers&#34;&gt;https://developers.google.com/android/drivers&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;对应系统具体的构建ID查询: &lt;a href=&#34;https://source.android.com/setup/build-numbers&#34;&gt;https://source.android.com/setup/build-numbers&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;这里根据上文，这里选择使用的驱动 &lt;code&gt;PixelbinariesforAndroid10.0.0(QP1A.191005.007.A3)&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215115851.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;下载这2个文件，并将这两个压缩包文件上传放置&amp;#x2F;aosp&amp;#x2F;目录下，并解压执行里边的shell脚本。&lt;/strong&gt;需要注意的是Shell脚本会要求你输入 &lt;code&gt;I ACCEPT&lt;/code&gt;，这个大概在第8条左右的规则那里。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ~/bin/aosp/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;chmod&lt;/span&gt; 777 ./extract-google_devices-sailfish.sh&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;chmod&lt;/span&gt; 777 ./extract-qcom-sailfish.sh&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;./extract-google_devices-sailfish.sh &lt;span class=&#34;comment&#34;&gt;# 注意要输入 I ACCEPT&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;./extract-qcom-sailfish.sh &lt;span class=&#34;comment&#34;&gt;# 注意要输入 I ACCEPT&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;# 执行完后就可以将这文件删除&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215136359.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;上述步骤操作完成后，&lt;strong&gt;需要查看一下源码中有没手机对应的设备内核。&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;内核存放位置参考: &lt;a href=&#34;https://source.android.google.cn/setup/build/building-kernels#id-version&#34;&gt;https://source.android.google.cn/setup/build/building-kernels#id-version&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215147875.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;如果没有对应的内核，则按照文档中的步骤进行构建内核，一般都会有的！&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215152551.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;进行编译&#34;&gt;&lt;a href=&#34;#进行编译&#34; class=&#34;headerlink&#34; title=&#34;进行编译&#34;&gt;&lt;/a&gt;进行编译&lt;/h2&gt;&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;cd&lt;/span&gt; ~/bin/aosp/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;make clobber &lt;span class=&#34;comment&#34;&gt;# 清理，一套Android源码可以编译不同的机型，想要更换机形，需要执行该清理动作。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;source&lt;/span&gt; build/envsetup.sh &lt;span class=&#34;comment&#34;&gt;# 执行配置一些环境遍历，下边的命令想要使用就要通过这个脚本进行环境变量配置。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;lunch &lt;span class=&#34;comment&#34;&gt;# 选择需要编译的设备内核和编译版本&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;版本类型&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ul&gt;
+&lt;li&gt;xxx-user 没有root权限。&lt;/li&gt;
+&lt;li&gt;xxx-userdebug adbd有root权限，需要手动su。&lt;/li&gt;
+&lt;li&gt;xxx-eng adbd完全root权限。&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;手机代号&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ul&gt;
+&lt;li&gt;sailfish 指的就是 Pixel 手机&lt;/li&gt;
+&lt;li&gt;可在 &lt;a href=&#34;https://developers.google.com/android/drivers&#34;&gt;https://developers.google.com/android/drivers&lt;/a&gt; 上进行查询&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;11&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;12&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;13&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;14&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;15&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;16&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;17&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;18&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;19&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;20&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;21&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;22&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;23&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;24&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;25&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;26&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;27&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;28&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;29&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;30&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;31&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;32&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;33&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;34&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;35&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;36&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;37&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;38&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;39&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;40&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;41&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;42&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;43&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;44&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;45&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;46&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;47&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;48&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;49&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;50&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;51&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;52&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;53&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;54&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;55&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;You&lt;span class=&#34;string&#34;&gt;&amp;#x27;re building on Linux&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;Lunch menu... pick a combo:&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     1. aosp_arm-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     2. aosp_arm64-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     3. aosp_blueline-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     4. aosp_bonito-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     5. aosp_car_arm-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     6. aosp_car_arm64-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     7. aosp_car_x86-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     8. aosp_car_x86_64-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     9. aosp_cf_arm64_phone-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     10. aosp_cf_x86_64_phone-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     11. aosp_cf_x86_auto-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     12. aosp_cf_x86_phone-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     13. aosp_cf_x86_tv-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     14. aosp_crosshatch-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     15. aosp_marlin-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     16. aosp_sailfish-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     17. aosp_sargo-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     18. aosp_taimen-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     19. aosp_walleye-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     20. aosp_walleye_test-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     21. aosp_x86-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     22. aosp_x86_64-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     23. beagle_x15-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     24. fuchsia_arm64-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     25. fuchsia_x86_64-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     26. hikey-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     27. hikey64_only-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     28. hikey960-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     29. hikey960_tv-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     30. hikey_tv-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     31. m_e_arm-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     32. mini_emulator_arm64-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     33. mini_emulator_x86-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     34. mini_emulator_x86_64-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     35. poplar-eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     36. poplar-user&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     37. poplar-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     38. qemu_trusty_arm64-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;     39. uml-userdebug&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;这里sailfish没有显示user和eng版本，需要手动开启。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;cd ~/bin/aosp/&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;nano device/google/marlin/AndroidProducts.mk&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;# 在下边配置汇总增加user和eng&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;COMMON_LUNCH_CHOICES := \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_marlin-userdebug \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_marlin-user \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_marlin-end \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_sailfish-userdebug \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_sailfish-user \&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;string&#34;&gt;        aosp_sailfish-end&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;之后再次运行如下操作，进行编译。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;source&lt;/span&gt; build/envsetup.sh&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;lunch &lt;span class=&#34;comment&#34;&gt;# 输入要编译的版本&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215230347.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;进行编译，这里的 &lt;code&gt;-j&lt;/code&gt;指的是要分配多少个CPU核心处理编译这个任务，&lt;strong&gt;注意不要乱填，根据实际情况来填写，不然编译到后边会报错。&lt;/strong&gt;&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;make -j4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215248243.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;编译完成后会生成几个对应的镜像文件**~&amp;#x2F;bin&amp;#x2F;aosp&amp;#x2F;out&amp;#x2F;target&amp;#x2F;product&amp;#x2F;手机代号&amp;#x2F;**文件夹下&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;vendor.img&lt;/li&gt;
+&lt;li&gt;system_other.img&lt;/li&gt;
+&lt;li&gt;system.img&lt;/li&gt;
+&lt;li&gt;boot.img&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;将这些文件copy出来，用来进行刷机用。&lt;/p&gt;
+"> <!-- TODO: truncate -->
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="atom.xml" rel="alternate" title="Mask安全小组&#39;s Blog" type="application/atom+xml">
+	<link href="/favicon.ico" rel="shortcut icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/hljs.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+    <link href='/stylesheets/font.css' rel='stylesheet' type='text/css'>
+	<script src="//cdn.bootcdn.net/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![}]-->
+
+    <script type="text/javascript" src="/javascripts/jquery-tapir.js"></script>
+
+    <!-- remove or comment it to disable ajaxification -->   
+    <!-- <script src="/javascripts/ajaxify.js"></script> -->
+
+    
+
+    
+
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+    <div id="wrapper">
+    <header id="header" class="inner"><!-- for more effects see _animate.scss -->
+<h1 class="animated bounceInDown">
+    <div id="headerbg">
+        Mask安全小组&#39;s Blog
+    </div>
+</h1>
+<span class="subtitle"></span>
+<br>
+
+<ul id="social-links" style="text-align:center; clear:both;">
+  
+  
+  
+  
+  
+  
+  
+  
+</ul>
+
+
+<!-- use full url including 'index.html' for navigation bar if you are using ajax -->
+<ul id="nav">
+	<li id="ajax"><a href="/index.html">首页</a></li>
+	<li id="ajax"><a href="/archives/index.html">文章</a></li>
+	<li id="ajax"><a href="/tags/index.html">标签</a></li>
+    <li><a href="/atom.xml">RSS</a></li>
+    
+    <li>
+    <div id="dark">
+        <form action="//www.google.com.hk/search" method="get" accept-charset="UTF-8" id="search">
+            <input type="hidden" name="sitesearch" value="https://blog.mask-sec.com" />
+            <input type="text" name="q" results="0" placeholder="搜索..." x-webkit-speech />
+        </form>
+    </div>
+    </li>
+        
+</ul>
+
+
+
+
+</header>
+
+<div id="toload">
+<!-- begin toload -->
+    <div id="content" class="inner">
+        <article class="post">
+	<h2 class="title">安卓系统定制-系统编译</h2>
+    <div class="meta">
+        <div class="date">发布时间: <time datetime="2022-08-21T13:49:18.000Z" itemprop="datePublished">2022-49-21</time>
+</div>
+        <div class="tags">标签: 
+
+<a href="/tags/安卓系统定制/">安卓系统定制</a>
+</div>
+    </div>
+	<div class="entry-content"><h1 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h1><h2 id="Ubuntu系统安装"><a href="#Ubuntu系统安装" class="headerlink" title="Ubuntu系统安装"></a>Ubuntu系统安装</h2><p>下载一个Ubuntu-20.04.2.0-desktop系统，之后用来编译安卓系统用。将内存调到 <code>16g+</code>、磁盘 <code>500g+</code>。**(有单独不用的真机的话建议可以使用真机)**</p>
+<ul>
+<li><p>安装完成后进行如下几个操作</p>
+</li>
+<li><ul>
+<li>关闭睡眠和锁屏 &#x3D; 点击右上角的设置 -&gt; 隐私 -&gt; 锁屏 -&gt; 取消自动锁屏</li>
+<li>设置中文 &#x3D; Setting -&gt; Region &amp; Language -&gt; Manage Installed.. -&gt; 添加或删除 -&gt; 中文简体(Chinese Simplifed) -&gt; LogOut</li>
+<li>更新下载源 &#x3D; 点击右上角的设置 -&gt; 关于 -&gt; 软件更新 -&gt; 修改”下载自”处位置</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 安装虚拟机和真机拖拽用的工具，真机可以忽略。</span></span><br><span class="line">sudo apt-get autoremove open-vm-tools</span><br><span class="line">sudo apt install open-vm-tools-desktop</span><br><span class="line">reboot</span><br></pre></td></tr></table></figure>
+
+<h2 id="AOSP源码下载"><a href="#AOSP源码下载" class="headerlink" title="AOSP源码下载"></a>AOSP源码下载</h2><p>这一步是准备安卓源码包，下边的步骤照着做就可以了，建议先玩转起来不要太过多纠结里边的一些概念。</p>
+<h3 id="初始化包"><a href="#初始化包" class="headerlink" title="初始化包"></a>初始化包</h3><p>下载: aosp-20210601.tar 有点大119G</p>
+<p><strong>因为Android的源码越来越大，直接使用repo sync失败的概率也越来越高。所以我们可以避开使用repo sync的方式，而采用下载初始化包的方式来实现下载源码。</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> ~/bin/</span><br><span class="line"><span class="built_in">cd</span> ~/bin/ <span class="comment"># 将下载好的tar包放在该目录下，并进行解压。</span></span><br><span class="line">tar xvf aosp-latest.tar</span><br></pre></td></tr></table></figure>
+
+<h3 id="同步源码"><a href="#同步源码" class="headerlink" title="同步源码"></a>同步源码</h3><p>安装和配置git，之后需要用到。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get install git</span><br><span class="line">git config --global user.email aaa@qq.com</span><br><span class="line">git config --global user.name <span class="string">&quot;aaa&quot;</span></span><br><span class="line">git config --global http.sslverify <span class="literal">false</span></span><br><span class="line">git config --global https.sslverify <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<p>下载repo，repo是一个python脚本(所以还需要配置Python环境)，因为Android源码包含数百个git库，repo用于简化帮助管理AndroidGit版本库的工具。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;PATH=~/bin:\$PATH&quot;</span> &gt;&gt; ~/.bashrc</span><br><span class="line"><span class="built_in">source</span> ~/.bashrc</span><br><span class="line">sudo apt-get install curl</span><br><span class="line">curl https://mirrors.tuna.tsinghua.edu.cn/git/git-repo -o ~/bin/repo</span><br><span class="line"><span class="built_in">chmod</span> a+x ~/bin/repo</span><br><span class="line"><span class="built_in">export</span> REPO_URL=<span class="string">&#x27;https://mirrors.tuna.tsinghua.edu.cn/git/git-repo&#x27;</span></span><br><span class="line"><span class="built_in">cd</span> ~/bin/</span><br><span class="line"></span><br><span class="line"><span class="comment"># 需要用到python38</span></span><br><span class="line">sudo <span class="built_in">unlink</span> /usr/bin/python</span><br><span class="line">sudo <span class="built_in">ln</span> -s /usr/bin/python3.8 /usr/bin/python</span><br><span class="line"></span><br><span class="line"><span class="comment"># android版本可以在https://source.android.com/setup/build-numbers中查看，这里指定使用的源码是Android10的10.0.0_r17版</span></span><br><span class="line"><span class="comment"># 指定要同步的分支</span></span><br><span class="line">repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17</span><br><span class="line"><span class="built_in">cd</span> ./aosp/</span><br><span class="line">repo <span class="built_in">sync</span> <span class="comment"># 正常同步完成后即可得到完整的android源码目录</span></span><br></pre></td></tr></table></figure>
+
+<p>如果执行repo sync报如下错误</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">repo reset: error: Entry <span class="string">&#x27;.github/workflows/test-ci.yml&#x27;</span> not uptodate. Cannot merge.</span><br><span class="line">fatal: 不能重置索引文件至版本 <span class="string">&#x27;v2.22^0&#x27;</span>。</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215036702.png" alt="Image"></p>
+<p>按照下边这个步骤进行解决</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="built_in">cd</span> ~/bin/aosp/.repo/repo</span><br><span class="line">git pull <span class="comment"># 同步仓库代码到最新</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 回到aosp目录，重新同步一下源码。</span></span><br><span class="line"><span class="built_in">cd</span> ../../</span><br><span class="line">repo init -u https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/manifest -b android-10.0.0_r17</span><br><span class="line">repo <span class="built_in">sync</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215048565.png" alt="Image"></p>
+<p>这时候能看到aosp目录下就有对应版本的安卓源码</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215057870.png" alt="Image"></p>
+<h1 id="系统编译"><a href="#系统编译" class="headerlink" title="系统编译"></a>系统编译</h1><p>完成上边的步骤之后，将可以尝试进行系统编译。在编译前需要安装一些系统的依赖</p>
+<h2 id="环境依赖"><a href="#环境依赖" class="headerlink" title="环境依赖"></a>环境依赖</h2><p>Android7以上系统编译需要有Jdk8、以及一些系统上的依赖。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">sudo add-apt-repository ppa:openjdk-r/ppa</span><br><span class="line">sudo apt-get update</span><br><span class="line">sudo apt-get install openjdk-8-jdk</span><br><span class="line"></span><br><span class="line"><span class="comment"># 其他版本的ubuntu依赖,可以参考: https://source.android.com/setup/build/initializing?hl=zh-cn#next-download-the-source</span></span><br><span class="line">sudo apt-get install git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig libncurses5</span><br></pre></td></tr></table></figure>
+
+<h2 id="手机驱动"><a href="#手机驱动" class="headerlink" title="手机驱动"></a>手机驱动</h2><p>根据自己的手机设备和Android系统版本，来选择对应的手机驱动。</p>
+<p>下载地址: <a target="_blank" rel="noopener" href="https://developers.google.com/android/drivers">https://developers.google.com/android/drivers</a></p>
+<p>对应系统具体的构建ID查询: <a target="_blank" rel="noopener" href="https://source.android.com/setup/build-numbers">https://source.android.com/setup/build-numbers</a></p>
+<p>这里根据上文，这里选择使用的驱动 <code>PixelbinariesforAndroid10.0.0(QP1A.191005.007.A3)</code>。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215115851.png" alt="Image"></p>
+<p><strong>下载这2个文件，并将这两个压缩包文件上传放置&#x2F;aosp&#x2F;目录下，并解压执行里边的shell脚本。</strong>需要注意的是Shell脚本会要求你输入 <code>I ACCEPT</code>，这个大概在第8条左右的规则那里。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/bin/aosp/</span><br><span class="line"><span class="built_in">chmod</span> 777 ./extract-google_devices-sailfish.sh</span><br><span class="line"><span class="built_in">chmod</span> 777 ./extract-qcom-sailfish.sh</span><br><span class="line">./extract-google_devices-sailfish.sh <span class="comment"># 注意要输入 I ACCEPT</span></span><br><span class="line">./extract-qcom-sailfish.sh <span class="comment"># 注意要输入 I ACCEPT</span></span><br><span class="line"><span class="comment"># 执行完后就可以将这文件删除</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215136359.png" alt="Image"></p>
+<p>上述步骤操作完成后，<strong>需要查看一下源码中有没手机对应的设备内核。</strong></p>
+<p>内核存放位置参考: <a target="_blank" rel="noopener" href="https://source.android.google.cn/setup/build/building-kernels#id-version">https://source.android.google.cn/setup/build/building-kernels#id-version</a></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215147875.png" alt="Image"></p>
+<p><strong>如果没有对应的内核，则按照文档中的步骤进行构建内核，一般都会有的！</strong></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215152551.png" alt="Image"></p>
+<h2 id="进行编译"><a href="#进行编译" class="headerlink" title="进行编译"></a>进行编译</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/bin/aosp/</span><br><span class="line">make clobber <span class="comment"># 清理，一套Android源码可以编译不同的机型，想要更换机形，需要执行该清理动作。</span></span><br><span class="line"><span class="built_in">source</span> build/envsetup.sh <span class="comment"># 执行配置一些环境遍历，下边的命令想要使用就要通过这个脚本进行环境变量配置。</span></span><br><span class="line">lunch <span class="comment"># 选择需要编译的设备内核和编译版本</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>版本类型</p>
+</li>
+<li><ul>
+<li>xxx-user 没有root权限。</li>
+<li>xxx-userdebug adbd有root权限，需要手动su。</li>
+<li>xxx-eng adbd完全root权限。</li>
+</ul>
+</li>
+<li><p>手机代号</p>
+</li>
+<li><ul>
+<li>sailfish 指的就是 Pixel 手机</li>
+<li>可在 <a target="_blank" rel="noopener" href="https://developers.google.com/android/drivers">https://developers.google.com/android/drivers</a> 上进行查询</li>
+</ul>
+</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line">You<span class="string">&#x27;re building on Linux</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">Lunch menu... pick a combo:</span></span><br><span class="line"><span class="string">     1. aosp_arm-eng</span></span><br><span class="line"><span class="string">     2. aosp_arm64-eng</span></span><br><span class="line"><span class="string">     3. aosp_blueline-userdebug</span></span><br><span class="line"><span class="string">     4. aosp_bonito-userdebug</span></span><br><span class="line"><span class="string">     5. aosp_car_arm-userdebug</span></span><br><span class="line"><span class="string">     6. aosp_car_arm64-userdebug</span></span><br><span class="line"><span class="string">     7. aosp_car_x86-userdebug</span></span><br><span class="line"><span class="string">     8. aosp_car_x86_64-userdebug</span></span><br><span class="line"><span class="string">     9. aosp_cf_arm64_phone-userdebug</span></span><br><span class="line"><span class="string">     10. aosp_cf_x86_64_phone-userdebug</span></span><br><span class="line"><span class="string">     11. aosp_cf_x86_auto-userdebug</span></span><br><span class="line"><span class="string">     12. aosp_cf_x86_phone-userdebug</span></span><br><span class="line"><span class="string">     13. aosp_cf_x86_tv-userdebug</span></span><br><span class="line"><span class="string">     14. aosp_crosshatch-userdebug</span></span><br><span class="line"><span class="string">     15. aosp_marlin-userdebug</span></span><br><span class="line"><span class="string">     16. aosp_sailfish-userdebug</span></span><br><span class="line"><span class="string">     17. aosp_sargo-userdebug</span></span><br><span class="line"><span class="string">     18. aosp_taimen-userdebug</span></span><br><span class="line"><span class="string">     19. aosp_walleye-userdebug</span></span><br><span class="line"><span class="string">     20. aosp_walleye_test-userdebug</span></span><br><span class="line"><span class="string">     21. aosp_x86-eng</span></span><br><span class="line"><span class="string">     22. aosp_x86_64-eng</span></span><br><span class="line"><span class="string">     23. beagle_x15-userdebug</span></span><br><span class="line"><span class="string">     24. fuchsia_arm64-eng</span></span><br><span class="line"><span class="string">     25. fuchsia_x86_64-eng</span></span><br><span class="line"><span class="string">     26. hikey-userdebug</span></span><br><span class="line"><span class="string">     27. hikey64_only-userdebug</span></span><br><span class="line"><span class="string">     28. hikey960-userdebug</span></span><br><span class="line"><span class="string">     29. hikey960_tv-userdebug</span></span><br><span class="line"><span class="string">     30. hikey_tv-userdebug</span></span><br><span class="line"><span class="string">     31. m_e_arm-userdebug</span></span><br><span class="line"><span class="string">     32. mini_emulator_arm64-userdebug</span></span><br><span class="line"><span class="string">     33. mini_emulator_x86-userdebug</span></span><br><span class="line"><span class="string">     34. mini_emulator_x86_64-userdebug</span></span><br><span class="line"><span class="string">     35. poplar-eng</span></span><br><span class="line"><span class="string">     36. poplar-user</span></span><br><span class="line"><span class="string">     37. poplar-userdebug</span></span><br><span class="line"><span class="string">     38. qemu_trusty_arm64-userdebug</span></span><br><span class="line"><span class="string">     39. uml-userdebug</span></span><br><span class="line"><span class="string">这里sailfish没有显示user和eng版本，需要手动开启。</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">cd ~/bin/aosp/</span></span><br><span class="line"><span class="string">nano device/google/marlin/AndroidProducts.mk</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string"># 在下边配置汇总增加user和eng</span></span><br><span class="line"><span class="string">COMMON_LUNCH_CHOICES := \</span></span><br><span class="line"><span class="string">        aosp_marlin-userdebug \</span></span><br><span class="line"><span class="string">        aosp_marlin-user \</span></span><br><span class="line"><span class="string">        aosp_marlin-end \</span></span><br><span class="line"><span class="string">        aosp_sailfish-userdebug \</span></span><br><span class="line"><span class="string">        aosp_sailfish-user \</span></span><br><span class="line"><span class="string">        aosp_sailfish-end</span></span><br></pre></td></tr></table></figure>
+
+<p>之后再次运行如下操作，进行编译。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">source</span> build/envsetup.sh</span><br><span class="line">lunch <span class="comment"># 输入要编译的版本</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215230347.png" alt="Image"></p>
+<p>进行编译，这里的 <code>-j</code>指的是要分配多少个CPU核心处理编译这个任务，<strong>注意不要乱填，根据实际情况来填写，不然编译到后边会报错。</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make -j4</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E7%B3%BB%E7%BB%9F%E7%BC%96%E8%AF%91/640-20220821215248243.png" alt="Image"></p>
+<p>编译完成后会生成几个对应的镜像文件**~&#x2F;bin&#x2F;aosp&#x2F;out&#x2F;target&#x2F;product&#x2F;手机代号&#x2F;**文件夹下</p>
+<ul>
+<li>vendor.img</li>
+<li>system_other.img</li>
+<li>system.img</li>
+<li>boot.img</li>
+</ul>
+<p>将这些文件copy出来，用来进行刷机用。</p>
+</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+
+    </div>
+    <footer id="footer">
+    <div style="display:inline">
+    Copyright &copy; 2022
+
+    Mask安全小组
+
+</div>
+
+
+    </footer>
+    <script src="/javascripts/fabric.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+ <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+<!-- end toload --> 
+</div>
+</div>
+<script src="/javascripts/jquery.ui.totop.js" type="text/javascript"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+;(function($){$().UItoTop({easingType:'easeOutCirc'});})(jQuery); 
+/*]]>*/
+</script><!-- remove it to remove the scroll to top button -->
+</body>
+</html>

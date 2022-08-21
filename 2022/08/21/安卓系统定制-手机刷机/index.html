@@ -1,0 +1,266 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+    
+	<title>安卓系统定制-手机刷机 - Mask安全小组&#39;s Blog</title>
+    <meta name="author" content="">
+    
+	<meta name="description" content="&lt;p&gt;上一篇文章中的步骤是针对 &lt;code&gt;Pixel(sailfish)&lt;/code&gt;的手机，本篇文章使用的是 &lt;code&gt;PixelXL(Marlin)&lt;/code&gt;，所以要注意下编译的安卓系统手机驱动的部分要选择使用的是 &lt;code&gt;Marlin&lt;/code&gt;。&lt;/p&gt;
+&lt;h1 id=&#34;刷机前的准备&#34;&gt;&lt;a href=&#34;#刷机前的准备&#34; class=&#34;headerlink&#34; title=&#34;刷机前的准备&#34;&gt;&lt;/a&gt;刷机前的准备&lt;/h1&gt;&lt;h2 id=&#34;硬件设备&#34;&gt;&lt;a href=&#34;#硬件设备&#34; class=&#34;headerlink&#34; title=&#34;硬件设备&#34;&gt;&lt;/a&gt;硬件设备&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;Pixel XL（marlin）手机一部 - &lt;strong&gt;需要进行解锁，这里建议大家在咸鱼或淘宝买一部，价格270左右能买到，买时注意问下有没进行解锁。&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;能连电脑和手机的数据线一条&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;Android套件&#34;&gt;&lt;a href=&#34;#Android套件&#34; class=&#34;headerlink&#34; title=&#34;Android套件&#34;&gt;&lt;/a&gt;Android套件&lt;/h2&gt;&lt;p&gt;这里下载一个AndroidStudio，通过这个来安装SDK。安装完成后，打开 &lt;code&gt;Preferences&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215818982.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;勾选对应的SDK，这里承接上文，选择SDK10。进行安装&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836401.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836387.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836246.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;安装完成后，在环境变量中添加如下信息(这里笔者使用的是Mac电脑只能提供Mac的了)，相信聪明的你应该知道咋配置。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;export&lt;/span&gt; ANDROID_HOME=/Users/xxx/Library/Android/sdk/&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;export&lt;/span&gt; PATH=&lt;span class=&#34;string&#34;&gt;&amp;quot;&lt;span class=&#34;variable&#34;&gt;$ANDROID_HOME&lt;/span&gt;/platform-tools:&lt;span class=&#34;variable&#34;&gt;$ANDROID_HOME&lt;/span&gt;/tools:&lt;span class=&#34;variable&#34;&gt;$PATH&lt;/span&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;SDK的路径在上边的AndroidStudio配置里能看到&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215916057.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;输入 &lt;code&gt;fastboot--help&lt;/code&gt;和 &lt;code&gt;adb--help&lt;/code&gt;，能正常提示的话就是正常了，提示找不到命令的话就检查一下环境变量的配置。&lt;/p&gt;
+&lt;h2 id=&#34;原厂镜像下载&#34;&gt;&lt;a href=&#34;#原厂镜像下载&#34; class=&#34;headerlink&#34; title=&#34;原厂镜像下载&#34;&gt;&lt;/a&gt;原厂镜像下载&lt;/h2&gt;&lt;p&gt;Google原厂镜像: &lt;a href=&#34;https://developers.google.com/android/images#marlin&#34;&gt;https://developers.google.com/android/images#marlin&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;点击页面上的 &lt;code&gt;Acknowledge&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;选择对应的手机型号和Android版本，点击 &lt;code&gt;Link&lt;/code&gt;进行下载。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215934436.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;进行刷机&#34;&gt;&lt;a href=&#34;#进行刷机&#34; class=&#34;headerlink&#34; title=&#34;进行刷机&#34;&gt;&lt;/a&gt;进行刷机&lt;/h1&gt;&lt;p&gt;将手机用数据线连接到电脑上，按照下边的步骤开启USB调试。&lt;/p&gt;
+&lt;h2 id=&#34;USB调试&#34;&gt;&lt;a href=&#34;#USB调试&#34; class=&#34;headerlink&#34; title=&#34;USB调试&#34;&gt;&lt;/a&gt;USB调试&lt;/h2&gt;&lt;p&gt;开启开发者模式: 设置 -&amp;gt; 关于手机 -&amp;gt; 版本号(连续多次点击就可以开启开发者模式)&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220001598.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;开启手机USB调试: 设置 -&amp;gt; 系统 -&amp;gt; 高级 -&amp;gt; USB调试 -&amp;gt; 在手机上点击弹出来要求进行授权的窗口。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220010945.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;打开终端输入 &lt;code&gt;adb devices&lt;/code&gt;，能正常显示出有一台设备即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220019400.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;进入bootloader模式&#34;&gt;&lt;a href=&#34;#进入bootloader模式&#34; class=&#34;headerlink&#34; title=&#34;进入bootloader模式&#34;&gt;&lt;/a&gt;进入bootloader模式&lt;/h2&gt;&lt;p&gt;注意这个过程&lt;strong&gt;不要拔掉数据线&lt;/strong&gt;，打开命令行输入下边的命令。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;adb reboot bootloader&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;或者将&lt;strong&gt;手机关机后同时按住手机电源键与音量减键&lt;/strong&gt;，进入bootloader界面。注意下图中提示的 &lt;code&gt;UNLOCKED&lt;/code&gt;，代表手机已经是解锁状态。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220112690.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;刷入系统&#34;&gt;&lt;a href=&#34;#刷入系统&#34; class=&#34;headerlink&#34; title=&#34;刷入系统&#34;&gt;&lt;/a&gt;刷入系统&lt;/h2&gt;&lt;p&gt;这里先使用Google下载的原厂镜像包进行刷机尝试，将下好的包进行解压，然后在手机连接电脑并处于bootloader模式下运行镜像包中的脚本。&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;built_in&#34;&gt;chmod&lt;/span&gt; 777 ./flash-all.sh&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;./flash-all.sh&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220128971.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;等待脚本执行完&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220139396.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;此时正常刷入后，手机就会进入到初始化配置的界面，正常配置就可以了。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220201024.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;刷入定制的系统&#34;&gt;&lt;a href=&#34;#刷入定制的系统&#34; class=&#34;headerlink&#34; title=&#34;刷入定制的系统&#34;&gt;&lt;/a&gt;刷入定制的系统&lt;/h1&gt;&lt;p&gt;在上一篇文章中，我们已经介绍了如何进行系统编译，编译完成后在 &lt;code&gt;~/bin/aosp/out/target/product/手机代号/&lt;/code&gt;文件夹下提取出以下几个文件。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;vendor.img&lt;/li&gt;
+&lt;li&gt;system_other.img&lt;/li&gt;
+&lt;li&gt;system.img&lt;/li&gt;
+&lt;li&gt;boot.img&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;并将这些文件，放入原本解压出来的Google镜像包中的 &lt;code&gt;.zip&lt;/code&gt;文件中，使用压缩包的方式打开这个 &lt;code&gt;.zip&lt;/code&gt;文件，然后将文件拖拽进去。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220209549.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;进行覆盖&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220217614.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;之后按照前边的刷入系统的步骤再次打开usb调试，通过命令进入bootloader模式，然后运行flash-all.sh脚本即可。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220227606.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;刷机完成后正常配置进入到桌面&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220241854.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;可以看到系统的构建版本就是我们自己指定编译的安卓系统。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220255008.png&#34; alt=&#34;Image&#34;&gt;&lt;/p&gt;
+&lt;p&gt;之后的文章中会介绍如何通过自己定制的系统完成一些日常逆向中所需要的操作。&lt;/p&gt;
+"> <!-- TODO: truncate -->
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="atom.xml" rel="alternate" title="Mask安全小组&#39;s Blog" type="application/atom+xml">
+	<link href="/favicon.ico" rel="shortcut icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/hljs.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+    <link href='/stylesheets/font.css' rel='stylesheet' type='text/css'>
+	<script src="//cdn.bootcdn.net/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![}]-->
+
+    <script type="text/javascript" src="/javascripts/jquery-tapir.js"></script>
+
+    <!-- remove or comment it to disable ajaxification -->   
+    <!-- <script src="/javascripts/ajaxify.js"></script> -->
+
+    
+
+    
+
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+    <div id="wrapper">
+    <header id="header" class="inner"><!-- for more effects see _animate.scss -->
+<h1 class="animated bounceInDown">
+    <div id="headerbg">
+        Mask安全小组&#39;s Blog
+    </div>
+</h1>
+<span class="subtitle"></span>
+<br>
+
+<ul id="social-links" style="text-align:center; clear:both;">
+  
+  
+  
+  
+  
+  
+  
+  
+</ul>
+
+
+<!-- use full url including 'index.html' for navigation bar if you are using ajax -->
+<ul id="nav">
+	<li id="ajax"><a href="/index.html">首页</a></li>
+	<li id="ajax"><a href="/archives/index.html">文章</a></li>
+	<li id="ajax"><a href="/tags/index.html">标签</a></li>
+    <li><a href="/atom.xml">RSS</a></li>
+    
+    <li>
+    <div id="dark">
+        <form action="//www.google.com.hk/search" method="get" accept-charset="UTF-8" id="search">
+            <input type="hidden" name="sitesearch" value="https://blog.mask-sec.com" />
+            <input type="text" name="q" results="0" placeholder="搜索..." x-webkit-speech />
+        </form>
+    </div>
+    </li>
+        
+</ul>
+
+
+
+
+</header>
+
+<div id="toload">
+<!-- begin toload -->
+    <div id="content" class="inner">
+        <article class="post">
+	<h2 class="title">安卓系统定制-手机刷机</h2>
+    <div class="meta">
+        <div class="date">发布时间: <time datetime="2022-08-21T13:53:56.000Z" itemprop="datePublished">2022-53-21</time>
+</div>
+        <div class="tags">标签: 
+
+<a href="/tags/安卓系统定制/">安卓系统定制</a>
+</div>
+    </div>
+	<div class="entry-content"><p>上一篇文章中的步骤是针对 <code>Pixel(sailfish)</code>的手机，本篇文章使用的是 <code>PixelXL(Marlin)</code>，所以要注意下编译的安卓系统手机驱动的部分要选择使用的是 <code>Marlin</code>。</p>
+<h1 id="刷机前的准备"><a href="#刷机前的准备" class="headerlink" title="刷机前的准备"></a>刷机前的准备</h1><h2 id="硬件设备"><a href="#硬件设备" class="headerlink" title="硬件设备"></a>硬件设备</h2><ul>
+<li>Pixel XL（marlin）手机一部 - <strong>需要进行解锁，这里建议大家在咸鱼或淘宝买一部，价格270左右能买到，买时注意问下有没进行解锁。</strong></li>
+<li>能连电脑和手机的数据线一条</li>
+</ul>
+<h2 id="Android套件"><a href="#Android套件" class="headerlink" title="Android套件"></a>Android套件</h2><p>这里下载一个AndroidStudio，通过这个来安装SDK。安装完成后，打开 <code>Preferences</code>。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215818982.png" alt="Image"></p>
+<p>勾选对应的SDK，这里承接上文，选择SDK10。进行安装</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836401.png" alt="Image"></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836387.png" alt="Image"></p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215836246.png" alt="Image"></p>
+<p>安装完成后，在环境变量中添加如下信息(这里笔者使用的是Mac电脑只能提供Mac的了)，相信聪明的你应该知道咋配置。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> ANDROID_HOME=/Users/xxx/Library/Android/sdk/</span><br><span class="line"><span class="built_in">export</span> PATH=<span class="string">&quot;<span class="variable">$ANDROID_HOME</span>/platform-tools:<span class="variable">$ANDROID_HOME</span>/tools:<span class="variable">$PATH</span>&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>SDK的路径在上边的AndroidStudio配置里能看到</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215916057.png" alt="Image"></p>
+<p>输入 <code>fastboot--help</code>和 <code>adb--help</code>，能正常提示的话就是正常了，提示找不到命令的话就检查一下环境变量的配置。</p>
+<h2 id="原厂镜像下载"><a href="#原厂镜像下载" class="headerlink" title="原厂镜像下载"></a>原厂镜像下载</h2><p>Google原厂镜像: <a target="_blank" rel="noopener" href="https://developers.google.com/android/images#marlin">https://developers.google.com/android/images#marlin</a></p>
+<p>点击页面上的 <code>Acknowledge</code></p>
+<p>选择对应的手机型号和Android版本，点击 <code>Link</code>进行下载。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821215934436.png" alt="Image"></p>
+<h1 id="进行刷机"><a href="#进行刷机" class="headerlink" title="进行刷机"></a>进行刷机</h1><p>将手机用数据线连接到电脑上，按照下边的步骤开启USB调试。</p>
+<h2 id="USB调试"><a href="#USB调试" class="headerlink" title="USB调试"></a>USB调试</h2><p>开启开发者模式: 设置 -&gt; 关于手机 -&gt; 版本号(连续多次点击就可以开启开发者模式)</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220001598.png" alt="Image"></p>
+<p>开启手机USB调试: 设置 -&gt; 系统 -&gt; 高级 -&gt; USB调试 -&gt; 在手机上点击弹出来要求进行授权的窗口。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220010945.png" alt="Image"></p>
+<p>打开终端输入 <code>adb devices</code>，能正常显示出有一台设备即可。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220019400.png" alt="Image"></p>
+<h2 id="进入bootloader模式"><a href="#进入bootloader模式" class="headerlink" title="进入bootloader模式"></a>进入bootloader模式</h2><p>注意这个过程<strong>不要拔掉数据线</strong>，打开命令行输入下边的命令。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">adb reboot bootloader</span><br></pre></td></tr></table></figure>
+
+<p>或者将<strong>手机关机后同时按住手机电源键与音量减键</strong>，进入bootloader界面。注意下图中提示的 <code>UNLOCKED</code>，代表手机已经是解锁状态。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220112690.png" alt="Image"></p>
+<h2 id="刷入系统"><a href="#刷入系统" class="headerlink" title="刷入系统"></a>刷入系统</h2><p>这里先使用Google下载的原厂镜像包进行刷机尝试，将下好的包进行解压，然后在手机连接电脑并处于bootloader模式下运行镜像包中的脚本。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">chmod</span> 777 ./flash-all.sh</span><br><span class="line">./flash-all.sh</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220128971.png" alt="Image"></p>
+<p>等待脚本执行完</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220139396.png" alt="Image"></p>
+<p>此时正常刷入后，手机就会进入到初始化配置的界面，正常配置就可以了。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220201024.png" alt="Image"></p>
+<h1 id="刷入定制的系统"><a href="#刷入定制的系统" class="headerlink" title="刷入定制的系统"></a>刷入定制的系统</h1><p>在上一篇文章中，我们已经介绍了如何进行系统编译，编译完成后在 <code>~/bin/aosp/out/target/product/手机代号/</code>文件夹下提取出以下几个文件。</p>
+<ul>
+<li>vendor.img</li>
+<li>system_other.img</li>
+<li>system.img</li>
+<li>boot.img</li>
+</ul>
+<p>并将这些文件，放入原本解压出来的Google镜像包中的 <code>.zip</code>文件中，使用压缩包的方式打开这个 <code>.zip</code>文件，然后将文件拖拽进去。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220209549.png" alt="Image"></p>
+<p>进行覆盖</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220217614.png" alt="Image"></p>
+<p>之后按照前边的刷入系统的步骤再次打开usb调试，通过命令进入bootloader模式，然后运行flash-all.sh脚本即可。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220227606.png" alt="Image"></p>
+<p>刷机完成后正常配置进入到桌面</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220241854.png" alt="Image"></p>
+<p>可以看到系统的构建版本就是我们自己指定编译的安卓系统。</p>
+<p><img src="/images/%E5%AE%89%E5%8D%93%E7%B3%BB%E7%BB%9F%E5%AE%9A%E5%88%B6-%E6%89%8B%E6%9C%BA%E5%88%B7%E6%9C%BA/640-20220821220255008.png" alt="Image"></p>
+<p>之后的文章中会介绍如何通过自己定制的系统完成一些日常逆向中所需要的操作。</p>
+</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+
+    </div>
+    <footer id="footer">
+    <div style="display:inline">
+    Copyright &copy; 2022
+
+    Mask安全小组
+
+</div>
+
+
+    </footer>
+    <script src="/javascripts/fabric.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+ <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+<!-- end toload --> 
+</div>
+</div>
+<script src="/javascripts/jquery.ui.totop.js" type="text/javascript"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+;(function($){$().UItoTop({easingType:'easeOutCirc'});})(jQuery); 
+/*]]>*/
+</script><!-- remove it to remove the scroll to top button -->
+</body>
+</html>
