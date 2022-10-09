@@ -1,0 +1,264 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+    
+	<title>Mask安全小组&#39;s Blog</title>
+    <meta name="author" content="">
+    
+	<meta name="description" content="&lt;h1 id=&#34;介绍&#34;&gt;&lt;a href=&#34;#介绍&#34; class=&#34;headerlink&#34; title=&#34;介绍&#34;&gt;&lt;/a&gt;介绍&lt;/h1&gt;&lt;p&gt;URLDNS常用于探测目标是否存在反序列化，本篇结合ysoserial工具分析探测的原理。&lt;/p&gt;
+&lt;h1 id=&#34;使用&#34;&gt;&lt;a href=&#34;#使用&#34; class=&#34;headerlink&#34; title=&#34;使用&#34;&gt;&lt;/a&gt;使用&lt;/h1&gt;&lt;p&gt;借助ysoserial工具可以生成对应的payload&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;java -jar ysoserial-all.jar URLDNS &lt;span class=&#34;string&#34;&gt;&amp;quot;dnslog-url&amp;quot;&lt;/span&gt; &amp;gt; /tmp/urldns.bin&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;下边是模拟存在反序列化问题的代码&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;FileInputStream&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;fileInputStream&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;FileInputStream&lt;/span&gt;(&lt;span class=&#34;string&#34;&gt;&amp;quot;/tmp/urldns.bin&amp;quot;&lt;/span&gt;);&lt;span class=&#34;type&#34;&gt;ObjectInputStream&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;objectInputStream&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;ObjectInputStream&lt;/span&gt;(fileInputStream);objectInputStream.readObject();&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;当目标服务器读取序列化的流并调用readObject进行对象还原，那么就将触发DNSLog的回显，由此可以来判断目标是否可能存在反序列化漏洞。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;原理&#34;&gt;&lt;a href=&#34;#原理&#34; class=&#34;headerlink&#34; title=&#34;原理&#34;&gt;&lt;/a&gt;原理&lt;/h1&gt;&lt;p&gt;这里我们来看一下ysoserial工具的实现代码&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://github.com/frohoff/ysoserial/blob/2874a69f6127fd3b3f078461741910423a6b1376/src/main/java/ysoserial/payloads/URLDNS.java&#34;&gt;https://github.com/frohoff/ysoserial/blob/2874a69f6127fd3b3f078461741910423a6b1376/src/main/java/ysoserial/payloads/URLDNS.java&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;从源码中可以看到，最终序列化的是一个ht实例也就是HashMap，并且这个HashMap中put了一个元素为u，u的话这里是URL的类实例。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841252.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;那么我们根据上边的已知道的信息，我们来看一下HashMap的readObject函数，因为在URLDNS这个payload里序列化出来的类型是HashMap，在反序列化时调用的readObject就是HashMap的readObject。&lt;/p&gt;
+&lt;p&gt;这里我把readObject一些代码删除了，并在注释里写了一些代码的解释。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;11&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;12&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;13&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;14&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;15&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;16&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;17&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;18&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;19&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;20&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;21&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;22&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;23&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;24&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;25&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;26&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;27&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;28&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;29&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;30&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;31&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;32&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;33&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;private&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;readObject&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;(ObjectInputStream s)&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;throws&lt;/span&gt; IOException, ClassNotFoundException &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;comment&#34;&gt;// 上边有一堆代码，主要是做一些初始化和计算字段之类的。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  ......&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;comment&#34;&gt;// 这里只要你有往map里put元素，mappings就不会为0。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;comment&#34;&gt;// mappings就相当于映射的键值对表&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (mappings &amp;lt; &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;throw&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;InvalidObjectException&lt;/span&gt;(&lt;span class=&#34;string&#34;&gt;&amp;quot;Illegal mappings count: &amp;quot;&lt;/span&gt; + mappings);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125; &lt;span class=&#34;keyword&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (mappings == &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;comment&#34;&gt;// use defaults&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125; &lt;span class=&#34;keyword&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (mappings &amp;gt; &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;comment&#34;&gt;// 一些计算&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      ......&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        SharedSecrets.getJavaOISAccess().checkArray(s, Map.Entry[].class, cap);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;meta&#34;&gt;@SuppressWarnings(&amp;#123;&amp;quot;rawtypes&amp;quot;,&amp;quot;unchecked&amp;quot;&amp;#125;)&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      Node&amp;lt;K,V&amp;gt;[] tab = (Node&amp;lt;K,V&amp;gt;[])&lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;Node&lt;/span&gt;[cap];&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      table = tab;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;comment&#34;&gt;// 遍历map的键值对&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;for&lt;/span&gt; (&lt;span class=&#34;type&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;; i &amp;lt; mappings; i++) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        &lt;span class=&#34;meta&#34;&gt;@SuppressWarnings(&amp;quot;unchecked&amp;quot;)&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        &lt;span class=&#34;type&#34;&gt;K&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;key&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; (K) s.readObject();&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        &lt;span class=&#34;meta&#34;&gt;@SuppressWarnings(&amp;quot;unchecked&amp;quot;)&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        &lt;span class=&#34;type&#34;&gt;V&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;value&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; (V) s.readObject();&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        &lt;span class=&#34;comment&#34;&gt;// 注意这里这个hash(key)&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        putVal(hash(key), key, value, &lt;span class=&#34;literal&#34;&gt;false&lt;/span&gt;, &lt;span class=&#34;literal&#34;&gt;false&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;我们把这个 &lt;code&gt;hash(key)&lt;/code&gt;暂开来说，这个key是什么呢，举个例子: &lt;code&gt;map.put(&amp;quot;a&amp;quot;,123);&lt;/code&gt;，那么这个key就是 &lt;code&gt;a&lt;/code&gt;。所以我们这里结合上下文，ysoserial在put时是URL的一个实例也就是u。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215025366.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;然后我们再跟进&lt;code&gt;hash()&lt;/code&gt;这个函数，hash里就判断key是否为空，不为空的话又调用了key的&lt;code&gt;hashCode()&lt;/code&gt;，那么此时我们知道key实际上就是URL这个类型，那么我们继续跟进到URL这个类看看他的hashCode是如何实现的。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;hash&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;(Object key)&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt; h;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;comment&#34;&gt;// 三元运算符，key为null时返回0，不为null时调用key的hashCode函数。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; (key == &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;) ? &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt; : (h = key.hashCode()) ^ (h &amp;gt;&amp;gt;&amp;gt; &lt;span class=&#34;number&#34;&gt;16&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;跟进到URL的hashCode函数&lt;/p&gt;
+&lt;figure class=&#34;highlight plaintext&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;public synchronized int hashCode() &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      // hashCode 不等于 -1 就直接返回hashCode&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      if (hashCode != -1)&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;          return hashCode;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      // 否则就调用handler的hashCode函数&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      // 这里的this其实就是上一段代码中的key，也就是URL这个类的实例本身。&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      hashCode = handler.hashCode(this);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      return hashCode;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;那么这里又多了一个handler，我们在URL这个类的上下文找一下这个handler是什么。可以看到handler是一个URLStreamHandler的类型，因为上边调用了handler的hashCode函数，所以我们这里继续跟进到hashCode里。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841218.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;可以看到在URLStreamHandler的hashCode函数里有接收一个参数URL，这个URL我在前边的代码注释中解释过了，他就是最开始HashMap那里put的那个URL实例也就是&lt;code&gt;u&lt;/code&gt;。接着我们看到将u传给了函数&lt;code&gt;getHostAddress&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841199.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;继续跟进看一下getHostAddress函数的逻辑，&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 这里调用另外一个函数，继续跟进。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;protected&lt;/span&gt; InetAddress &lt;span class=&#34;title function_&#34;&gt;getHostAddress&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;(URL u)&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; u.getHostAddress();&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;这里又跳回到了java.net.URL这个类的getHostAddress。这里这个host是什么呢，其实这里大家可以自己创建一个URL实例，然后调用一下URL的getHostAddress函数，就能知道是什么了。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;11&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;12&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;13&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;14&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;15&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;synchronized&lt;/span&gt; InetAddress &lt;span class=&#34;title function_&#34;&gt;getHostAddress&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;()&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (hostAddress != &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; hostAddress;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (host == &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt; || host.isEmpty()) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;try&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      hostAddress = InetAddress.getByName(host);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &amp;#125; &lt;span class=&#34;keyword&#34;&gt;catch&lt;/span&gt; (UnknownHostException | SecurityException ex) &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; hostAddress;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;这里我debug了一下，其实这个host就是我们在使用ysoserial时对应的dnslog的地址。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215113785.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;接着上边的代码将host传给了&lt;code&gt;InetAddress.getByName()&lt;/code&gt;，这个函数呢其实就是Java里用来做dns解析的一个函数。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215117894.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;那么到这里，就应该基本清楚了，也就是最开始是HashMap#put了一个元素为URL，然后这个URL实例最终调用了自身的getHostAddress函数，进行了dns解析，所以在dnslog平台上有相应的解析记录。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;p&gt;所以整个调用链过程如下&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;ul&gt;
+&lt;li&gt;HashMap -&amp;gt; readObject()&lt;/li&gt;
+&lt;li&gt;HashMap -&amp;gt; hash()&lt;/li&gt;
+&lt;li&gt;URL -&amp;gt; hashCode()&lt;/li&gt;
+&lt;li&gt;URLStreamHandler -&amp;gt; hashCode()&lt;/li&gt;
+&lt;li&gt;URLStreamHandler -&amp;gt; getHostAddress()&lt;/li&gt;
+&lt;li&gt;InetAddress-&amp;gt;getByName()&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h1 id=&#34;注意点&#34;&gt;&lt;a href=&#34;#注意点&#34; class=&#34;headerlink&#34; title=&#34;注意点&#34;&gt;&lt;/a&gt;注意点&lt;/h1&gt;&lt;p&gt;在前边URL这个类的hashCode函数里实际上是有一个判断的，也就是hashCode不等于-1的话就会直接返回，那么就无法进入到后续的handler的hashCode了。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;synchronized&lt;/span&gt; &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;hashCode&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;()&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;comment&#34;&gt;// hashCode 不等于 -1 就直接返回hashCode&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;if&lt;/span&gt; (hashCode != -&lt;span class=&#34;number&#34;&gt;1&lt;/span&gt;)&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; hashCode;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;comment&#34;&gt;// 否则就调用handler的hashCode函数&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;comment&#34;&gt;// 这里的this其实就是上一段代码中的key，也就是URL这个类的实例本身。&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  hashCode = handler.hashCode(&lt;span class=&#34;built_in&#34;&gt;this&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;  &lt;span class=&#34;keyword&#34;&gt;return&lt;/span&gt; hashCode;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;这里我们查看ysoserial的代码可以看到，ysoserial通过反射将hashCode设置为了-1。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841245.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+"> <!-- TODO: truncate -->
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="atom.xml" rel="alternate" title="Mask安全小组&#39;s Blog" type="application/atom+xml">
+	<link href="/favicon.ico" rel="shortcut icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/hljs.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+    <link href='/stylesheets/font.css' rel='stylesheet' type='text/css'>
+	<script src="//cdn.bootcdn.net/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![}]-->
+
+    <script type="text/javascript" src="/javascripts/jquery-tapir.js"></script>
+
+    <!-- remove or comment it to disable ajaxification -->   
+    <!-- <script src="/javascripts/ajaxify.js"></script> -->
+
+    
+
+    
+
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+    <div id="wrapper">
+    <header id="header" class="inner"><!-- for more effects see _animate.scss -->
+<h1 class="animated bounceInDown">
+    <div id="headerbg">
+        Mask安全小组&#39;s Blog
+    </div>
+</h1>
+<span class="subtitle"></span>
+<br>
+
+<ul id="social-links" style="text-align:center; clear:both;">
+  
+  
+  
+  
+  
+  
+  
+  
+</ul>
+
+
+<!-- use full url including 'index.html' for navigation bar if you are using ajax -->
+<ul id="nav">
+	<li id="ajax"><a href="/index.html">首页</a></li>
+	<li id="ajax"><a href="/archives/index.html">文章</a></li>
+	<li id="ajax"><a href="/tags/index.html">标签</a></li>
+    <li><a href="/atom.xml">RSS</a></li>
+    
+    <li>
+    <div id="dark">
+        <form action="//www.google.com.hk/search" method="get" accept-charset="UTF-8" id="search">
+            <input type="hidden" name="sitesearch" value="https://blog.mask-sec.com" />
+            <input type="text" name="q" results="0" placeholder="搜索..." x-webkit-speech />
+        </form>
+    </div>
+    </li>
+        
+</ul>
+
+
+
+
+</header>
+
+<div id="toload">
+<!-- begin toload -->
+    <div id="content" class="inner">
+        <article class="post">
+	<h2 class="title"></h2>
+    <div class="meta">
+        <div class="date">发布时间: <time datetime="2022-10-09T13:48:27.129Z" itemprop="datePublished">2022-48-9</time>
+</div>
+        <div class="tags">标签: 
+
+
+</div>
+    </div>
+	<div class="entry-content"><h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h1><p>URLDNS常用于探测目标是否存在反序列化，本篇结合ysoserial工具分析探测的原理。</p>
+<h1 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h1><p>借助ysoserial工具可以生成对应的payload</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -jar ysoserial-all.jar URLDNS <span class="string">&quot;dnslog-url&quot;</span> &gt; /tmp/urldns.bin</span><br></pre></td></tr></table></figure>
+
+<p>下边是模拟存在反序列化问题的代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">FileInputStream</span> <span class="variable">fileInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">FileInputStream</span>(<span class="string">&quot;/tmp/urldns.bin&quot;</span>);<span class="type">ObjectInputStream</span> <span class="variable">objectInputStream</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ObjectInputStream</span>(fileInputStream);objectInputStream.readObject();</span><br></pre></td></tr></table></figure>
+
+<p>当目标服务器读取序列化的流并调用readObject进行对象还原，那么就将触发DNSLog的回显，由此可以来判断目标是否可能存在反序列化漏洞。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640.png" alt="图片"></p>
+<h1 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h1><p>这里我们来看一下ysoserial工具的实现代码</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/frohoff/ysoserial/blob/2874a69f6127fd3b3f078461741910423a6b1376/src/main/java/ysoserial/payloads/URLDNS.java">https://github.com/frohoff/ysoserial/blob/2874a69f6127fd3b3f078461741910423a6b1376/src/main/java/ysoserial/payloads/URLDNS.java</a></p>
+<p>从源码中可以看到，最终序列化的是一个ht实例也就是HashMap，并且这个HashMap中put了一个元素为u，u的话这里是URL的类实例。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841252.png" alt="图片"></p>
+<p>那么我们根据上边的已知道的信息，我们来看一下HashMap的readObject函数，因为在URLDNS这个payload里序列化出来的类型是HashMap，在反序列化时调用的readObject就是HashMap的readObject。</p>
+<p>这里我把readObject一些代码删除了，并在注释里写了一些代码的解释。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title function_">readObject</span><span class="params">(ObjectInputStream s)</span></span><br><span class="line">  <span class="keyword">throws</span> IOException, ClassNotFoundException &#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 上边有一堆代码，主要是做一些初始化和计算字段之类的。</span></span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 这里只要你有往map里put元素，mappings就不会为0。</span></span><br><span class="line">    <span class="comment">// mappings就相当于映射的键值对表</span></span><br><span class="line">    <span class="keyword">if</span> (mappings &lt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">InvalidObjectException</span>(<span class="string">&quot;Illegal mappings count: &quot;</span> + mappings);</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mappings == <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="comment">// use defaults</span></span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mappings &gt; <span class="number">0</span>) &#123;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 一些计算</span></span><br><span class="line">      ......</span><br><span class="line"></span><br><span class="line">        SharedSecrets.getJavaOISAccess().checkArray(s, Map.Entry[].class, cap);</span><br><span class="line">      <span class="meta">@SuppressWarnings(&#123;&quot;rawtypes&quot;,&quot;unchecked&quot;&#125;)</span></span><br><span class="line">      Node&lt;K,V&gt;[] tab = (Node&lt;K,V&gt;[])<span class="keyword">new</span> <span class="title class_">Node</span>[cap];</span><br><span class="line">      table = tab;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 遍历map的键值对</span></span><br><span class="line">      <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt; mappings; i++) &#123;</span><br><span class="line">        <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">        <span class="type">K</span> <span class="variable">key</span> <span class="operator">=</span> (K) s.readObject();</span><br><span class="line">        <span class="meta">@SuppressWarnings(&quot;unchecked&quot;)</span></span><br><span class="line">        <span class="type">V</span> <span class="variable">value</span> <span class="operator">=</span> (V) s.readObject();</span><br><span class="line">        <span class="comment">// 注意这里这个hash(key)</span></span><br><span class="line">        putVal(hash(key), key, value, <span class="literal">false</span>, <span class="literal">false</span>);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们把这个 <code>hash(key)</code>暂开来说，这个key是什么呢，举个例子: <code>map.put(&quot;a&quot;,123);</code>，那么这个key就是 <code>a</code>。所以我们这里结合上下文，ysoserial在put时是URL的一个实例也就是u。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215025366.png" alt="图片"></p>
+<p>然后我们再跟进<code>hash()</code>这个函数，hash里就判断key是否为空，不为空的话又调用了key的<code>hashCode()</code>，那么此时我们知道key实际上就是URL这个类型，那么我们继续跟进到URL这个类看看他的hashCode是如何实现的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="type">int</span> <span class="title function_">hash</span><span class="params">(Object key)</span> &#123;</span><br><span class="line">      <span class="type">int</span> h;</span><br><span class="line">      <span class="comment">// 三元运算符，key为null时返回0，不为null时调用key的hashCode函数。</span></span><br><span class="line">      <span class="keyword">return</span> (key == <span class="literal">null</span>) ? <span class="number">0</span> : (h = key.hashCode()) ^ (h &gt;&gt;&gt; <span class="number">16</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>跟进到URL的hashCode函数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public synchronized int hashCode() &#123;</span><br><span class="line">      // hashCode 不等于 -1 就直接返回hashCode</span><br><span class="line">      if (hashCode != -1)</span><br><span class="line">          return hashCode;</span><br><span class="line">      </span><br><span class="line">      // 否则就调用handler的hashCode函数</span><br><span class="line">      // 这里的this其实就是上一段代码中的key，也就是URL这个类的实例本身。</span><br><span class="line">      hashCode = handler.hashCode(this);</span><br><span class="line">      return hashCode;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>那么这里又多了一个handler，我们在URL这个类的上下文找一下这个handler是什么。可以看到handler是一个URLStreamHandler的类型，因为上边调用了handler的hashCode函数，所以我们这里继续跟进到hashCode里。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841218.png" alt="图片"></p>
+<p>可以看到在URLStreamHandler的hashCode函数里有接收一个参数URL，这个URL我在前边的代码注释中解释过了，他就是最开始HashMap那里put的那个URL实例也就是<code>u</code>。接着我们看到将u传给了函数<code>getHostAddress</code>。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841199.png" alt="图片"></p>
+<p>继续跟进看一下getHostAddress函数的逻辑，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这里调用另外一个函数，继续跟进。</span></span><br><span class="line"><span class="keyword">protected</span> InetAddress <span class="title function_">getHostAddress</span><span class="params">(URL u)</span> &#123;</span><br><span class="line">  <span class="keyword">return</span> u.getHostAddress();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里又跳回到了java.net.URL这个类的getHostAddress。这里这个host是什么呢，其实这里大家可以自己创建一个URL实例，然后调用一下URL的getHostAddress函数，就能知道是什么了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">synchronized</span> InetAddress <span class="title function_">getHostAddress</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (hostAddress != <span class="literal">null</span>) &#123;</span><br><span class="line">      <span class="keyword">return</span> hostAddress;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (host == <span class="literal">null</span> || host.isEmpty()) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">      hostAddress = InetAddress.getByName(host);</span><br><span class="line">  &#125; <span class="keyword">catch</span> (UnknownHostException | SecurityException ex) &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> hostAddress;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里我debug了一下，其实这个host就是我们在使用ysoserial时对应的dnslog的地址。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215113785.png" alt="图片"></p>
+<p>接着上边的代码将host传给了<code>InetAddress.getByName()</code>，这个函数呢其实就是Java里用来做dns解析的一个函数。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009215117894.png" alt="图片"></p>
+<p>那么到这里，就应该基本清楚了，也就是最开始是HashMap#put了一个元素为URL，然后这个URL实例最终调用了自身的getHostAddress函数，进行了dns解析，所以在dnslog平台上有相应的解析记录。</p>
+<ul>
+<li><p>所以整个调用链过程如下</p>
+</li>
+<li><ul>
+<li>HashMap -&gt; readObject()</li>
+<li>HashMap -&gt; hash()</li>
+<li>URL -&gt; hashCode()</li>
+<li>URLStreamHandler -&gt; hashCode()</li>
+<li>URLStreamHandler -&gt; getHostAddress()</li>
+<li>InetAddress-&gt;getByName()</li>
+</ul>
+</li>
+</ul>
+<h1 id="注意点"><a href="#注意点" class="headerlink" title="注意点"></a>注意点</h1><p>在前边URL这个类的hashCode函数里实际上是有一个判断的，也就是hashCode不等于-1的话就会直接返回，那么就无法进入到后续的handler的hashCode了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="type">int</span> <span class="title function_">hashCode</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="comment">// hashCode 不等于 -1 就直接返回hashCode</span></span><br><span class="line">  <span class="keyword">if</span> (hashCode != -<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> hashCode;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 否则就调用handler的hashCode函数</span></span><br><span class="line">  <span class="comment">// 这里的this其实就是上一段代码中的key，也就是URL这个类的实例本身。</span></span><br><span class="line">  hashCode = handler.hashCode(<span class="built_in">this</span>);</span><br><span class="line">  <span class="keyword">return</span> hashCode;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里我们查看ysoserial的代码可以看到，ysoserial通过反射将hashCode设置为了-1。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-URLDNS%E5%8F%8D%E5%BA%8F%E5%88%97%E6%8E%A2%E6%B5%8B/640-20221009214841245.png" alt="图片"></p>
+</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+
+    </div>
+    <footer id="footer">
+    <div style="display:inline">
+    Copyright &copy; 2022
+
+    Mask安全小组
+
+</div>
+
+
+    </footer>
+    <script src="/javascripts/fabric.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+ <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+<!-- end toload --> 
+</div>
+</div>
+<script src="/javascripts/jquery.ui.totop.js" type="text/javascript"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+;(function($){$().UItoTop({easingType:'easeOutCirc'});})(jQuery); 
+/*]]>*/
+</script><!-- remove it to remove the scroll to top button -->
+</body>
+</html>
