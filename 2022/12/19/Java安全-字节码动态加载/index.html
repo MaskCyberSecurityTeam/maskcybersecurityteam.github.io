@@ -1,0 +1,300 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+    
+	<title>Java安全-字节码动态加载 - Mask安全小组&#39;s Blog</title>
+    <meta name="author" content="">
+    
+	<meta name="description" content="&lt;p&gt;后续的文章中会涉及到字节码和类加载器的知识点，这里对Java字节码和常见的类加载器简单介绍与字节码的动态加载演示。&lt;/p&gt;
+&lt;h1 id=&#34;Java字节码定义&#34;&gt;&lt;a href=&#34;#Java字节码定义&#34; class=&#34;headerlink&#34; title=&#34;Java字节码定义&#34;&gt;&lt;/a&gt;Java字节码定义&lt;/h1&gt;&lt;p&gt;Java字节码是Java虚拟机执行的一种虚拟指令格式(网上抄的)，总之就是Java虚拟机能识别的都可以称为Java字节码。&lt;/p&gt;
+&lt;p&gt;那这东西是怎么个存在的形式的呢？我们来写一段&lt;code&gt;HelloWorld&lt;/code&gt;&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;Main&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;(String[] args)&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        System.out.println(&lt;span class=&#34;string&#34;&gt;&amp;quot;HelloWorld&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;使用javac进行编译为&lt;code&gt;.class&lt;/code&gt;文件&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;javac Main.java&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;使用&lt;code&gt;hexdump&lt;/code&gt;进行查看，像开头的&lt;code&gt;cafebabe&lt;/code&gt;就是&lt;code&gt;.class&lt;/code&gt;文件的文件头标识，&lt;code&gt;.class&lt;/code&gt;文件的内容就是标准的java字节码。其实他们就是一些有特定含义的字节数据&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109222937578.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;.class&lt;/code&gt;文件结构在这里不会进行讲解，有兴趣的可以查阅其他资料。&lt;/p&gt;
+&lt;h1 id=&#34;ClassLoader&#34;&gt;&lt;a href=&#34;#ClassLoader&#34; class=&#34;headerlink&#34; title=&#34;ClassLoader&#34;&gt;&lt;/a&gt;ClassLoader&lt;/h1&gt;&lt;p&gt;类加载器，用于将字节码加载到&lt;code&gt;JVM&lt;/code&gt;内存中。&lt;/p&gt;
+&lt;p&gt;下边我们来使用&lt;code&gt;ClassLoader&lt;/code&gt;来加载一下自定义的字节码，先创建一个普通的Java类，并且在该类的静态代码块和构造函数中添加两个打印两串字符串。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;Entity&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;static&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        System.out.println(&lt;span class=&#34;string&#34;&gt;&amp;quot;EntityStaticBlock...&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;Entity&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;()&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;        System.out.println(&lt;span class=&#34;string&#34;&gt;&amp;quot;EntityConstructor...&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;获取这个类的字节码，这里我们使用&lt;code&gt;BCEL&lt;/code&gt;的&lt;code&gt;Repository&lt;/code&gt;来操作，比较方便一些，后续也会讲到&lt;code&gt;BCEL&lt;/code&gt;。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;JavaClass&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;javaClass&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; Repository.lookupClass(Entity.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 这里返回的byte[]就是对应的字节码&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[] byteCodes = cls.getBytes();&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;System.out.println(byteCodes);&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;看下图中的&lt;code&gt;byte&lt;/code&gt;数组中的值就为字节码&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223034805.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;有了字节码后我们就使用&lt;code&gt;ClassLoader&lt;/code&gt;来进行加载字节码，那么在&lt;code&gt;ClassLoader&lt;/code&gt;中想要加载字节码，就需要使用&lt;code&gt;defineClass&lt;/code&gt;这个函数。这个函数是私有的需要通过反射来获取&lt;/p&gt;
+&lt;p&gt;definClass的三个参数(这里只介绍三个参数的那个)&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;需要加载的字节码数组&lt;/li&gt;
+&lt;li&gt;字节码起始位&lt;/li&gt;
+&lt;li&gt;字节码长度&lt;/li&gt;
+&lt;/ul&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;7&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;8&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;9&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;10&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;11&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 获取字节码&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;JavaClass&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;cls&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; Repository.lookupClass(Entity.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[] bytecodes = cls.getBytes();&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 反射获取defineClass函数&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;Method&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;defineClassMethod&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; ClassLoader.class.getDeclaredMethod(&lt;span class=&#34;string&#34;&gt;&amp;quot;defineClass&amp;quot;&lt;/span&gt;, &lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[].class, &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt;.class, &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt;.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 设置可访问权限&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;defineClassMethod.setAccessible(&lt;span class=&#34;literal&#34;&gt;true&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 调用函数加载字节码&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;Class&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;entity&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; (Class) defineClassMethod.invoke(ClassLoader.getSystemClassLoader(), bytecodes, &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;, bytecodes.length);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 创建实例&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;entity.newInstance();&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;执行后发生了报错，这个主要原因是因为当前获取的这个&lt;code&gt;ClassLoader&lt;/code&gt;中已经存在一个全类名叫&lt;code&gt;Entity&lt;/code&gt;的类了，所以我们无法再加载一个同类名的类。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223109879.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;我们将字节码转换为&lt;code&gt;Base64&lt;/code&gt;，然后将用到&lt;code&gt;Entity&lt;/code&gt;的代码进行删除。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;6&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[] bytecodes = &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;BASE64Decoder&lt;/span&gt;().decodeBuffer(&lt;span class=&#34;string&#34;&gt;&amp;quot;yv66vgAAADQAIQoABwASCQATABQIABUKABYAFwgAGAcAGQcAGgEABjxpbml0PgEAAygpVgEABENvZGUBAA9MaW5lTnVtYmVyVGFibGUBABJMb2NhbFZhcmlhYmxlVGFibGUBAAR0aGlzAQAITEVudGl0eTsBAAg8Y2xpbml0PgEAClNvdXJjZUZpbGUBAAtFbnRpdHkuamF2YQwACAAJBwAbDAAcAB0BABRFbnRpdHlDb25zdHJ1Y3Rvci4uLgcAHgwAHwAgAQAURW50aXR5U3RhdGljQmxvY2suLi4BAAZFbnRpdHkBABBqYXZhL2xhbmcvT2JqZWN0AQAQamF2YS9sYW5nL1N5c3RlbQEAA291dAEAFUxqYXZhL2lvL1ByaW50U3RyZWFtOwEAE2phdmEvaW8vUHJpbnRTdHJlYW0BAAdwcmludGxuAQAVKExqYXZhL2xhbmcvU3RyaW5nOylWACEABgAHAAAAAAACAAEACAAJAAEACgAAAD8AAgABAAAADSq3AAGyAAISA7YABLEAAAACAAsAAAAOAAMAAAAGAAQABwAMAAgADAAAAAwAAQAAAA0ADQAOAAAACAAPAAkAAQAKAAAAJQACAAAAAAAJsgACEgW2AASxAAAAAQALAAAACgACAAAAAwAIAAQAAQAQAAAAAgAR&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;Method&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;defineClassMethod&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; ClassLoader.class.getDeclaredMethod(&lt;span class=&#34;string&#34;&gt;&amp;quot;defineClass&amp;quot;&lt;/span&gt;, &lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[].class, &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt;.class, &lt;span class=&#34;type&#34;&gt;int&lt;/span&gt;.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;defineClassMethod.setAccessible(&lt;span class=&#34;literal&#34;&gt;true&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;Class&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;entity&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; (Class) defineClassMethod.invoke(ClassLoader.getSystemClassLoader(), bytecodes, &lt;span class=&#34;number&#34;&gt;0&lt;/span&gt;, bytecodes.length);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;entity.newInstance();&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;这样就可以加载字节码了，因为在代码中没有用到&lt;code&gt;Entity&lt;/code&gt;，所以就没有加载进&lt;code&gt;ClassLoader&lt;/code&gt;中，而后续我们就可以通过&lt;code&gt;definClass&lt;/code&gt;来进行加载。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223139813.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;还有另外一种方式就是自定义&lt;code&gt;ClassLoader&lt;/code&gt;，每个&lt;code&gt;ClassLoader&lt;/code&gt;之间是存在隔离机制的，所以是可以加载同名类。很多&lt;code&gt;WebShell&lt;/code&gt;中也是通过自定义&lt;code&gt;ClassLoader&lt;/code&gt;来加载恶意利用代码的。&lt;/p&gt;
+&lt;p&gt;那到这里我们就知道，有相应的字节码后我们就可以通过&lt;code&gt;ClassLoader&lt;/code&gt;的&lt;code&gt;defineClass&lt;/code&gt;函数即可将字节码加载进内存中，然后通过&lt;code&gt;newInstance&lt;/code&gt;来创建实例，这样就可以达到通过字节码来执行任意的代码。&lt;/p&gt;
+&lt;h1 id=&#34;URLClassLoader&#34;&gt;&lt;a href=&#34;#URLClassLoader&#34; class=&#34;headerlink&#34; title=&#34;URLClassLoader&#34;&gt;&lt;/a&gt;URLClassLoader&lt;/h1&gt;&lt;p&gt;&lt;code&gt;URLClassLoader&lt;/code&gt;继承自&lt;code&gt;ClassLoader&lt;/code&gt;，它主要提供了远程加载字节码的能力，可以利用来实现远程加载&lt;code&gt;jar&lt;/code&gt;包或&lt;code&gt;class&lt;/code&gt;文件。&lt;/p&gt;
+&lt;p&gt;我们来创建一个Jar包，并且在这个Jar包内编写一个Exp类。代码如下，在exp函数里调用命令行打开计算器，打成Jar包。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;Exp&lt;/span&gt; &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &lt;span class=&#34;keyword&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;title function_&#34;&gt;exp&lt;/span&gt;&lt;span class=&#34;params&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;throws&lt;/span&gt; IOException &amp;#123;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;      	Runtime.getRuntime().exec(&lt;span class=&#34;string&#34;&gt;&amp;quot;/System/Applications/Calculator.app/Contents/MacOS/Calculator&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;    &amp;#125;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&amp;#125;&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;挂在httpserver下&lt;/p&gt;
+&lt;figure class=&#34;highlight bash&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;python -m http.server 88882&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;通过以下几行简单的代码即可实现远程加载jar包进行函数调用&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;URL&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;url&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;URL&lt;/span&gt;(&lt;span class=&#34;string&#34;&gt;&amp;quot;http://127.0.0.1:8882/Exp.jar&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;URLClassLoader&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;urlClassLoader&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;URLClassLoader&lt;/span&gt;(&lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;URL&lt;/span&gt;[]&amp;#123;url&amp;#125;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;Class&amp;lt;?&amp;gt; expClass = urlClassLoader.loadClass(&lt;span class=&#34;string&#34;&gt;&amp;quot;Exp&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;expClass.getMethod(&lt;span class=&#34;string&#34;&gt;&amp;quot;exp&amp;quot;&lt;/span&gt;).invoke(&lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;, &lt;span class=&#34;literal&#34;&gt;null&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223300007.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;BCELClassLoader&#34;&gt;&lt;a href=&#34;#BCELClassLoader&#34; class=&#34;headerlink&#34; title=&#34;BCELClassLoader&#34;&gt;&lt;/a&gt;BCELClassLoader&lt;/h1&gt;&lt;p&gt;&lt;code&gt;BCEL&lt;/code&gt;全称是&lt;code&gt;Apache Commons BCEL&lt;/code&gt;，原先是一个单独的第三方库，后由&lt;code&gt;OracleJdk&lt;/code&gt;引入，对应的包&lt;code&gt;com.sun.org.apache.bcel&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;&amp;#x3D;&amp;#x3D;注意，在Jdk8u251的更新中，BCELClassLoader被移除。&amp;#x3D;&amp;#x3D;&lt;/p&gt;
+&lt;p&gt;下边先介绍一下BCEL中主要的2个类&lt;/p&gt;
+&lt;h2 id=&#34;Repository&#34;&gt;&lt;a href=&#34;#Repository&#34; class=&#34;headerlink&#34; title=&#34;Repository&#34;&gt;&lt;/a&gt;Repository&lt;/h2&gt;&lt;p&gt;Repository用于将一个Java类转换成原生字节码，相当于Javac命令来编译.java文件。这个在前边已经多次用到了&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;JavaClass&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;javaClass&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; Repository.lookupClass(Hello.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 获取原生的字节码&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;System.out.println(javaClass.getBytes());&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;h2 id=&#34;Utility&#34;&gt;&lt;a href=&#34;#Utility&#34; class=&#34;headerlink&#34; title=&#34;Utility&#34;&gt;&lt;/a&gt;Utility&lt;/h2&gt;&lt;p&gt;&lt;code&gt;Utility&lt;/code&gt;用于将原生的字节码转换成&lt;code&gt;BCEL&lt;/code&gt;格式的字节码和进行相应的解码。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;JavaClass&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;javaClass&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; Repository.lookupClass(Entity.class);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;String&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;bcelStr&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;string&#34;&gt;&amp;quot;$$BCEL$$&amp;quot;&lt;/span&gt; + Utility.encode(javaClass.getBytes(), &lt;span class=&#34;literal&#34;&gt;true&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;System.out.println(bcelStr);&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223401635.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;3&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;4&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;5&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;comment&#34;&gt;// 这是解码&lt;/span&gt;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;index&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; bcelStr.indexOf(&lt;span class=&#34;string&#34;&gt;&amp;quot;$$BCEL$$&amp;quot;&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;String&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;realName&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; bcelStr.substring(index + &lt;span class=&#34;number&#34;&gt;8&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;byte&lt;/span&gt;[] bytes = Utility.decode(realName, &lt;span class=&#34;literal&#34;&gt;true&lt;/span&gt;);&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;System.out.println(bytes);&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223415287.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;BCEL类加载器&#34;&gt;&lt;a href=&#34;#BCEL类加载器&#34; class=&#34;headerlink&#34; title=&#34;BCEL类加载器&#34;&gt;&lt;/a&gt;BCEL类加载器&lt;/h2&gt;&lt;p&gt;回到&lt;code&gt;BCELClassLoader&lt;/code&gt;上，需要注意&lt;code&gt;BCEL&lt;/code&gt;的&lt;code&gt;ClassLoader&lt;/code&gt;名字也叫&lt;code&gt;ClassLoader&lt;/code&gt;，主要通过导入的包名做区分。&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;com.sun.org.apache.bcel.internal.util.ClassLoader&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223424410.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;前边先通过&lt;code&gt;Utility&lt;/code&gt;获取对应的&lt;code&gt;BCEL&lt;/code&gt;字节码，然后使用对应的&lt;code&gt;ClassLoader&lt;/code&gt;进行加载即可。&lt;/p&gt;
+&lt;figure class=&#34;highlight java&#34;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&#34;gutter&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;1&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;2&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#34;code&#34;&gt;&lt;pre&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;type&#34;&gt;String&lt;/span&gt; &lt;span class=&#34;variable&#34;&gt;bcelStr&lt;/span&gt; &lt;span class=&#34;operator&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;string&#34;&gt;&amp;quot;$$BCEL$$$l$8b$I$A$A$A$A$A$A$AmP$cbN$c2$40$U$3dC$x$z$a5$K$f2$f0$fdba$C$$$ca$c6$jD$T$89$ae$g5$a9a$3f$d4$G$HKk$ca$d4$84$cf$d2$85$s$$$fc$A$3f$cax$a7$rD$Tg$92$3bs$ce$b9$f7$cc$bd$f3$f5$fd$f1$J$e0$U$z$L$Gj$r$d4$d10$d1$b4$b0$81M$T$5b$G$b6$N$ec0$U$fb$o$S$f2$8cAkw$86$M$fa$m$be$P$Y$w$ae$88$82$ebt$3a$K$92$3b$3e$K$89$a9$b9$b1$cf$c3$nO$84$c2$LR$97$Pb$c6$60$ba$97$91$Ur$de$a3k$df$P$X$86$96$X$a7$89$l$5c$J$95Y$ce3$9c$J$7f$e66L$94$M$ec$da$d8$c3$3eC$p$97$Gq4$93I$ea$cb8q$i$c7$c0$81$8dC$i$zeOr$v$fc$8b0$f6$lI$a6$bes$9a$a1$aa$y$bb$n$8f$c6$dd$9b$d1$q$f0$e5$l$ca$9b$cfd0$a5$e9$e2$94$84$a6$9b$v$o$ee$de$s$o$92$9eL$C$3e$a5$ae$eb$ff$d0$M$c6$93BaDum$f7$97$a5$qz$dc$eb$M$d1B$91$beV$ad$C$98$g$8a$a2E$e8$3c$c3$c0$ea$c9$3b$d8$x$K5$ed$N$faK$96V$a6$b8$G$8db$R$3a$V$ab$bf$b0$J$d9y$B$ed5$3aMT$96f$c7T$a5VI$Z$ad$y$8cXfde$92F$e9$3a1$d5$ec$81$f5$l$db4Be$f8$B$A$A&amp;quot;&lt;/span&gt;;&lt;/span&gt;&lt;br&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;keyword&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;title class_&#34;&gt;ClassLoader&lt;/span&gt;().loadClass(bcelStr).newInstance();&lt;/span&gt;&lt;br&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223457436.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;需要注意的是，&lt;code&gt;BCEL&lt;/code&gt;字节码需要以&lt;code&gt;$$BCEL$$&lt;/code&gt;进行开头，不加的话则会报错。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223508725.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;p&gt;这里直接跟进看一下&lt;code&gt;loadClass&lt;/code&gt;函数的逻辑，这里存在一个&lt;code&gt;if else&lt;/code&gt;判断，当你是以&lt;code&gt;$$BCEL$$&lt;/code&gt;开头则会选择去&lt;code&gt;createClass&lt;/code&gt;，否则的话则是去查找这个字节码类，找不到则会抛出异常。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223528952.png&#34; alt=&#34;图片&#34;&gt;&lt;/p&gt;
+&lt;h1 id=&#34;致谢&#34;&gt;&lt;a href=&#34;#致谢&#34; class=&#34;headerlink&#34; title=&#34;致谢&#34;&gt;&lt;/a&gt;致谢&lt;/h1&gt;&lt;p&gt;文章内容借鉴参考&lt;/p&gt;
+&lt;p&gt;Java安全名漫谈: &lt;a href=&#34;https://github.com/phith0n/JavaThings&#34;&gt;https://github.com/phith0n/JavaThings&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;javasec: &lt;a href=&#34;https://www.javasec.org/javase/&#34;&gt;https://www.javasec.org/javase/&lt;/a&gt;&lt;/p&gt;
+"> <!-- TODO: truncate -->
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="atom.xml" rel="alternate" title="Mask安全小组&#39;s Blog" type="application/atom+xml">
+	<link href="/favicon.ico" rel="shortcut icon">
+    <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/custom.css" media="screen, projection" rel="stylesheet" type="text/css">
+    <link href="/stylesheets/hljs.css" media="screen, projection" rel="stylesheet" type="text/css">
+
+    <link href='/stylesheets/font.css' rel='stylesheet' type='text/css'>
+	<script src="//cdn.bootcdn.net/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![}]-->
+
+    <script type="text/javascript" src="/javascripts/jquery-tapir.js"></script>
+
+    <!-- remove or comment it to disable ajaxification -->   
+    <!-- <script src="/javascripts/ajaxify.js"></script> -->
+
+    
+
+    
+
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+    <div id="wrapper">
+    <header id="header" class="inner"><!-- for more effects see _animate.scss -->
+<h1 class="animated bounceInDown">
+    <div id="headerbg">
+        Mask安全小组&#39;s Blog
+    </div>
+</h1>
+<span class="subtitle"></span>
+<br>
+
+<ul id="social-links" style="text-align:center; clear:both;">
+  
+  
+  
+  
+  
+  
+  
+  
+</ul>
+
+
+<!-- use full url including 'index.html' for navigation bar if you are using ajax -->
+<ul id="nav">
+	<li id="ajax"><a href="/index.html">首页</a></li>
+	<li id="ajax"><a href="/archives/index.html">文章</a></li>
+	<li id="ajax"><a href="/tags/index.html">标签</a></li>
+    <li><a href="/atom.xml">RSS</a></li>
+    
+    <li>
+    <div id="dark">
+        <form action="//www.google.com.hk/search" method="get" accept-charset="UTF-8" id="search">
+            <input type="hidden" name="sitesearch" value="https://blog.mask-sec.com" />
+            <input type="text" name="q" results="0" placeholder="搜索..." x-webkit-speech />
+        </form>
+    </div>
+    </li>
+        
+</ul>
+
+
+
+
+</header>
+
+<div id="toload">
+<!-- begin toload -->
+    <div id="content" class="inner">
+        <article class="post">
+	<h2 class="title">Java安全-字节码动态加载</h2>
+    <div class="meta">
+        <div class="date">发布时间: <time datetime="2022-12-19T13:11:48.000Z" itemprop="datePublished">2022-11-19</time>
+</div>
+        <div class="tags">标签: 
+
+<a href="/tags/Java安全/">Java安全</a>
+</div>
+    </div>
+	<div class="entry-content"><p>后续的文章中会涉及到字节码和类加载器的知识点，这里对Java字节码和常见的类加载器简单介绍与字节码的动态加载演示。</p>
+<h1 id="Java字节码定义"><a href="#Java字节码定义" class="headerlink" title="Java字节码定义"></a>Java字节码定义</h1><p>Java字节码是Java虚拟机执行的一种虚拟指令格式(网上抄的)，总之就是Java虚拟机能识别的都可以称为Java字节码。</p>
+<p>那这东西是怎么个存在的形式的呢？我们来写一段<code>HelloWorld</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Main</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;HelloWorld&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用javac进行编译为<code>.class</code>文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">javac Main.java</span><br></pre></td></tr></table></figure>
+
+<p>使用<code>hexdump</code>进行查看，像开头的<code>cafebabe</code>就是<code>.class</code>文件的文件头标识，<code>.class</code>文件的内容就是标准的java字节码。其实他们就是一些有特定含义的字节数据</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109222937578.png" alt="图片"></p>
+<p><code>.class</code>文件结构在这里不会进行讲解，有兴趣的可以查阅其他资料。</p>
+<h1 id="ClassLoader"><a href="#ClassLoader" class="headerlink" title="ClassLoader"></a>ClassLoader</h1><p>类加载器，用于将字节码加载到<code>JVM</code>内存中。</p>
+<p>下边我们来使用<code>ClassLoader</code>来加载一下自定义的字节码，先创建一个普通的Java类，并且在该类的静态代码块和构造函数中添加两个打印两串字符串。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Entity</span> &#123;</span><br><span class="line">    <span class="keyword">static</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;EntityStaticBlock...&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">Entity</span><span class="params">()</span> &#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;EntityConstructor...&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>获取这个类的字节码，这里我们使用<code>BCEL</code>的<code>Repository</code>来操作，比较方便一些，后续也会讲到<code>BCEL</code>。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">JavaClass</span> <span class="variable">javaClass</span> <span class="operator">=</span> Repository.lookupClass(Entity.class);</span><br><span class="line"><span class="comment">// 这里返回的byte[]就是对应的字节码</span></span><br><span class="line"><span class="type">byte</span>[] byteCodes = cls.getBytes();</span><br><span class="line">System.out.println(byteCodes);</span><br></pre></td></tr></table></figure>
+
+<p>看下图中的<code>byte</code>数组中的值就为字节码</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223034805.png" alt="图片"></p>
+<p>有了字节码后我们就使用<code>ClassLoader</code>来进行加载字节码，那么在<code>ClassLoader</code>中想要加载字节码，就需要使用<code>defineClass</code>这个函数。这个函数是私有的需要通过反射来获取</p>
+<p>definClass的三个参数(这里只介绍三个参数的那个)</p>
+<ul>
+<li>需要加载的字节码数组</li>
+<li>字节码起始位</li>
+<li>字节码长度</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取字节码</span></span><br><span class="line"><span class="type">JavaClass</span> <span class="variable">cls</span> <span class="operator">=</span> Repository.lookupClass(Entity.class);</span><br><span class="line"><span class="type">byte</span>[] bytecodes = cls.getBytes();</span><br><span class="line"><span class="comment">// 反射获取defineClass函数</span></span><br><span class="line"><span class="type">Method</span> <span class="variable">defineClassMethod</span> <span class="operator">=</span> ClassLoader.class.getDeclaredMethod(<span class="string">&quot;defineClass&quot;</span>, <span class="type">byte</span>[].class, <span class="type">int</span>.class, <span class="type">int</span>.class);</span><br><span class="line"><span class="comment">// 设置可访问权限</span></span><br><span class="line">defineClassMethod.setAccessible(<span class="literal">true</span>);</span><br><span class="line"><span class="comment">// 调用函数加载字节码</span></span><br><span class="line"><span class="type">Class</span> <span class="variable">entity</span> <span class="operator">=</span> (Class) defineClassMethod.invoke(ClassLoader.getSystemClassLoader(), bytecodes, <span class="number">0</span>, bytecodes.length);</span><br><span class="line"><span class="comment">// 创建实例</span></span><br><span class="line">entity.newInstance();</span><br></pre></td></tr></table></figure>
+
+<p>执行后发生了报错，这个主要原因是因为当前获取的这个<code>ClassLoader</code>中已经存在一个全类名叫<code>Entity</code>的类了，所以我们无法再加载一个同类名的类。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223109879.png" alt="图片"></p>
+<p>我们将字节码转换为<code>Base64</code>，然后将用到<code>Entity</code>的代码进行删除。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">byte</span>[] bytecodes = <span class="keyword">new</span> <span class="title class_">BASE64Decoder</span>().decodeBuffer(<span class="string">&quot;yv66vgAAADQAIQoABwASCQATABQIABUKABYAFwgAGAcAGQcAGgEABjxpbml0PgEAAygpVgEABENvZGUBAA9MaW5lTnVtYmVyVGFibGUBABJMb2NhbFZhcmlhYmxlVGFibGUBAAR0aGlzAQAITEVudGl0eTsBAAg8Y2xpbml0PgEAClNvdXJjZUZpbGUBAAtFbnRpdHkuamF2YQwACAAJBwAbDAAcAB0BABRFbnRpdHlDb25zdHJ1Y3Rvci4uLgcAHgwAHwAgAQAURW50aXR5U3RhdGljQmxvY2suLi4BAAZFbnRpdHkBABBqYXZhL2xhbmcvT2JqZWN0AQAQamF2YS9sYW5nL1N5c3RlbQEAA291dAEAFUxqYXZhL2lvL1ByaW50U3RyZWFtOwEAE2phdmEvaW8vUHJpbnRTdHJlYW0BAAdwcmludGxuAQAVKExqYXZhL2xhbmcvU3RyaW5nOylWACEABgAHAAAAAAACAAEACAAJAAEACgAAAD8AAgABAAAADSq3AAGyAAISA7YABLEAAAACAAsAAAAOAAMAAAAGAAQABwAMAAgADAAAAAwAAQAAAA0ADQAOAAAACAAPAAkAAQAKAAAAJQACAAAAAAAJsgACEgW2AASxAAAAAQALAAAACgACAAAAAwAIAAQAAQAQAAAAAgAR&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="type">Method</span> <span class="variable">defineClassMethod</span> <span class="operator">=</span> ClassLoader.class.getDeclaredMethod(<span class="string">&quot;defineClass&quot;</span>, <span class="type">byte</span>[].class, <span class="type">int</span>.class, <span class="type">int</span>.class);</span><br><span class="line">defineClassMethod.setAccessible(<span class="literal">true</span>);</span><br><span class="line"><span class="type">Class</span> <span class="variable">entity</span> <span class="operator">=</span> (Class) defineClassMethod.invoke(ClassLoader.getSystemClassLoader(), bytecodes, <span class="number">0</span>, bytecodes.length);</span><br><span class="line">entity.newInstance();</span><br></pre></td></tr></table></figure>
+
+<p>这样就可以加载字节码了，因为在代码中没有用到<code>Entity</code>，所以就没有加载进<code>ClassLoader</code>中，而后续我们就可以通过<code>definClass</code>来进行加载。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223139813.png" alt="图片"></p>
+<p>还有另外一种方式就是自定义<code>ClassLoader</code>，每个<code>ClassLoader</code>之间是存在隔离机制的，所以是可以加载同名类。很多<code>WebShell</code>中也是通过自定义<code>ClassLoader</code>来加载恶意利用代码的。</p>
+<p>那到这里我们就知道，有相应的字节码后我们就可以通过<code>ClassLoader</code>的<code>defineClass</code>函数即可将字节码加载进内存中，然后通过<code>newInstance</code>来创建实例，这样就可以达到通过字节码来执行任意的代码。</p>
+<h1 id="URLClassLoader"><a href="#URLClassLoader" class="headerlink" title="URLClassLoader"></a>URLClassLoader</h1><p><code>URLClassLoader</code>继承自<code>ClassLoader</code>，它主要提供了远程加载字节码的能力，可以利用来实现远程加载<code>jar</code>包或<code>class</code>文件。</p>
+<p>我们来创建一个Jar包，并且在这个Jar包内编写一个Exp类。代码如下，在exp函数里调用命令行打开计算器，打成Jar包。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Exp</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">exp</span><span class="params">()</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">      	Runtime.getRuntime().exec(<span class="string">&quot;/System/Applications/Calculator.app/Contents/MacOS/Calculator&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>挂在httpserver下</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python -m http.server 88882</span><br></pre></td></tr></table></figure>
+
+<p>通过以下几行简单的代码即可实现远程加载jar包进行函数调用</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">URL</span> <span class="variable">url</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">URL</span>(<span class="string">&quot;http://127.0.0.1:8882/Exp.jar&quot;</span>);</span><br><span class="line"><span class="type">URLClassLoader</span> <span class="variable">urlClassLoader</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">URLClassLoader</span>(<span class="keyword">new</span> <span class="title class_">URL</span>[]&#123;url&#125;);</span><br><span class="line">Class&lt;?&gt; expClass = urlClassLoader.loadClass(<span class="string">&quot;Exp&quot;</span>);</span><br><span class="line">expClass.getMethod(<span class="string">&quot;exp&quot;</span>).invoke(<span class="literal">null</span>, <span class="literal">null</span>);</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223300007.png" alt="图片"></p>
+<h1 id="BCELClassLoader"><a href="#BCELClassLoader" class="headerlink" title="BCELClassLoader"></a>BCELClassLoader</h1><p><code>BCEL</code>全称是<code>Apache Commons BCEL</code>，原先是一个单独的第三方库，后由<code>OracleJdk</code>引入，对应的包<code>com.sun.org.apache.bcel</code>。</p>
+<p>&#x3D;&#x3D;注意，在Jdk8u251的更新中，BCELClassLoader被移除。&#x3D;&#x3D;</p>
+<p>下边先介绍一下BCEL中主要的2个类</p>
+<h2 id="Repository"><a href="#Repository" class="headerlink" title="Repository"></a>Repository</h2><p>Repository用于将一个Java类转换成原生字节码，相当于Javac命令来编译.java文件。这个在前边已经多次用到了</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">JavaClass</span> <span class="variable">javaClass</span> <span class="operator">=</span> Repository.lookupClass(Hello.class);</span><br><span class="line"><span class="comment">// 获取原生的字节码</span></span><br><span class="line">System.out.println(javaClass.getBytes());</span><br></pre></td></tr></table></figure>
+
+<h2 id="Utility"><a href="#Utility" class="headerlink" title="Utility"></a>Utility</h2><p><code>Utility</code>用于将原生的字节码转换成<code>BCEL</code>格式的字节码和进行相应的解码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">JavaClass</span> <span class="variable">javaClass</span> <span class="operator">=</span> Repository.lookupClass(Entity.class);</span><br><span class="line"><span class="type">String</span> <span class="variable">bcelStr</span> <span class="operator">=</span> <span class="string">&quot;$$BCEL$$&quot;</span> + Utility.encode(javaClass.getBytes(), <span class="literal">true</span>);</span><br><span class="line">System.out.println(bcelStr);</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223401635.png" alt="图片"></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这是解码</span></span><br><span class="line"><span class="type">int</span> <span class="variable">index</span> <span class="operator">=</span> bcelStr.indexOf(<span class="string">&quot;$$BCEL$$&quot;</span>);</span><br><span class="line"><span class="type">String</span> <span class="variable">realName</span> <span class="operator">=</span> bcelStr.substring(index + <span class="number">8</span>);</span><br><span class="line"><span class="type">byte</span>[] bytes = Utility.decode(realName, <span class="literal">true</span>);</span><br><span class="line">System.out.println(bytes);</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223415287.png" alt="图片"></p>
+<h2 id="BCEL类加载器"><a href="#BCEL类加载器" class="headerlink" title="BCEL类加载器"></a>BCEL类加载器</h2><p>回到<code>BCELClassLoader</code>上，需要注意<code>BCEL</code>的<code>ClassLoader</code>名字也叫<code>ClassLoader</code>，主要通过导入的包名做区分。</p>
+<p><code>com.sun.org.apache.bcel.internal.util.ClassLoader</code></p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223424410.png" alt="图片"></p>
+<p>前边先通过<code>Utility</code>获取对应的<code>BCEL</code>字节码，然后使用对应的<code>ClassLoader</code>进行加载即可。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">bcelStr</span> <span class="operator">=</span> <span class="string">&quot;$$BCEL$$$l$8b$I$A$A$A$A$A$A$AmP$cbN$c2$40$U$3dC$x$z$a5$K$f2$f0$fdba$C$$$ca$c6$jD$T$89$ae$g5$a9a$3f$d4$G$HKk$ca$d4$84$cf$d2$85$s$$$fc$A$3f$cax$a7$rD$Tg$92$3bs$ce$b9$f7$cc$bd$f3$f5$fd$f1$J$e0$U$z$L$Gj$r$d4$d10$d1$b4$b0$81M$T$5b$G$b6$N$ec0$U$fb$o$S$f2$8cAkw$86$M$fa$m$be$P$Y$w$ae$88$82$ebt$3a$K$92$3b$3e$K$89$a9$b9$b1$cf$c3$nO$84$c2$LR$97$Pb$c6$60$ba$97$91$Ur$de$a3k$df$P$X$86$96$X$a7$89$l$5c$J$95Y$ce3$9c$J$7f$e66L$94$M$ec$da$d8$c3$3eC$p$97$Gq4$93I$ea$cb8q$i$c7$c0$81$8dC$i$zeOr$v$fc$8b0$f6$lI$a6$bes$9a$a1$aa$y$bb$n$8f$c6$dd$9b$d1$q$f0$e5$l$ca$9b$cfd0$a5$e9$e2$94$84$a6$9b$v$o$ee$de$s$o$92$9eL$C$3e$a5$ae$eb$ff$d0$M$c6$93BaDum$f7$97$a5$qz$dc$eb$M$d1B$91$beV$ad$C$98$g$8a$a2E$e8$3c$c3$c0$ea$c9$3b$d8$x$K5$ed$N$faK$96V$a6$b8$G$8db$R$3a$V$ab$bf$b0$J$d9y$B$ed5$3aMT$96f$c7T$a5VI$Z$ad$y$8cXfde$92F$e9$3a1$d5$ec$81$f5$l$db4Be$f8$B$A$A&quot;</span>;</span><br><span class="line"><span class="keyword">new</span> <span class="title class_">ClassLoader</span>().loadClass(bcelStr).newInstance();</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223457436.png" alt="图片"></p>
+<p>需要注意的是，<code>BCEL</code>字节码需要以<code>$$BCEL$$</code>进行开头，不加的话则会报错。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223508725.png" alt="图片"></p>
+<p>这里直接跟进看一下<code>loadClass</code>函数的逻辑，这里存在一个<code>if else</code>判断，当你是以<code>$$BCEL$$</code>开头则会选择去<code>createClass</code>，否则的话则是去查找这个字节码类，找不到则会抛出异常。</p>
+<p><img src="/images/Java%E5%AE%89%E5%85%A8-%E5%AD%97%E8%8A%82%E7%A0%81%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD/640-20230109223528952.png" alt="图片"></p>
+<h1 id="致谢"><a href="#致谢" class="headerlink" title="致谢"></a>致谢</h1><p>文章内容借鉴参考</p>
+<p>Java安全名漫谈: <a target="_blank" rel="noopener" href="https://github.com/phith0n/JavaThings">https://github.com/phith0n/JavaThings</a></p>
+<p>javasec: <a target="_blank" rel="noopener" href="https://www.javasec.org/javase/">https://www.javasec.org/javase/</a></p>
+</div>
+
+<div class="meta">
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+	
+	
+	<a class="addthis_button_tweet"></a>
+	
+	
+	<a class="addthis_counter addthis_pill_style"></a>
+	</div>
+  <script type="text/javascript" src="http://s7.addthis.com/js/250/addthis_widget.js#pubid="></script>
+</div>
+
+
+
+
+    </div>
+    <footer id="footer">
+    <div style="display:inline">
+    Copyright &copy; 2023
+
+    Mask安全小组
+
+</div>
+
+
+    </footer>
+    <script src="/javascripts/fabric.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script>
+ <!-- Delete or comment this line to disable Fancybox -->
+
+
+
+<!-- end toload --> 
+</div>
+</div>
+<script src="/javascripts/jquery.ui.totop.js" type="text/javascript"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+;(function($){$().UItoTop({easingType:'easeOutCirc'});})(jQuery); 
+/*]]>*/
+</script><!-- remove it to remove the scroll to top button -->
+</body>
+</html>
